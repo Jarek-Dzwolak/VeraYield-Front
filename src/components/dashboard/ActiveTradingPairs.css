@@ -1,0 +1,137 @@
+/* src/components/dashboard/ActiveTradingPairs.css */
+.active-pairs {
+  margin-bottom: 1.5rem;
+}
+
+.card-tabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+  padding: 0.8rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.8rem;
+  color: var(--gray-light);
+}
+
+.pairs-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.pair-row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+  padding: 1rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.9rem;
+  transition: background-color 0.3s ease;
+}
+
+.pair-row:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.pair-name {
+  font-weight: 600;
+}
+
+.pair-strategy {
+  color: var(--gray-light);
+}
+
+.pair-status {
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  display: inline-block;
+  text-align: center;
+}
+
+.pair-status.active {
+  background-color: rgba(0, 200, 83, 0.1);
+  color: var(--green);
+}
+
+.pair-status.pending {
+  background-color: rgba(255, 215, 0, 0.1);
+  color: var(--gold);
+}
+
+.pair-profit {
+  font-weight: 600;
+}
+
+.pair-profit.positive {
+  color: var(--green);
+}
+
+.pair-profit.negative {
+  color: var(--red);
+}
+
+.pair-time {
+  color: var(--gray-light);
+  font-size: 0.8rem;
+}
+
+.signal-strength {
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  display: inline-block;
+  text-align: center;
+}
+
+.signal-strength.strong {
+  background-color: rgba(0, 200, 83, 0.1);
+  color: var(--green);
+}
+
+.signal-strength.medium {
+  background-color: rgba(255, 215, 0, 0.1);
+  color: var(--gold);
+}
+
+.signal-strength.weak {
+  background-color: rgba(255, 61, 87, 0.1);
+  color: var(--red);
+}
+
+@media (max-width: 768px) {
+  .table-header,
+  .pair-row {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .table-header span:nth-child(4),
+  .table-header span:nth-child(5),
+  .pair-row span:nth-child(4),
+  .pair-row span:nth-child(5) {
+    display: none;
+  }
+
+  .pair-row {
+    position: relative;
+    padding-bottom: 2.5rem;
+  }
+
+  .pair-row::after {
+    content: attr(data-profit) " • " attr(data-time);
+    position: absolute;
+    bottom: 0.8rem;
+    left: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--gray-light);
+  }
+}
+
+@media (min-width: 992px) {
+  .table-header,
+  .pair-row {
+    grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+  }
+}

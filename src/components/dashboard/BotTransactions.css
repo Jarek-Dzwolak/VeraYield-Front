@@ -1,0 +1,119 @@
+/* src/components/dashboard/BotTransactions.css */
+.bot-transactions {
+  margin-bottom: 1.5rem;
+}
+
+.view-all-btn {
+  padding: 0.4rem 0.8rem;
+  background: none;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.view-all-btn:hover {
+  background-color: rgba(255, 215, 0, 0.1);
+}
+
+.transactions-table {
+  overflow-x: auto;
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr 1fr 1fr;
+  padding: 0.8rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.8rem;
+  color: var(--gray-light);
+}
+
+.transactions-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.transaction-row {
+  display: grid;
+  grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr 1fr 1fr;
+  padding: 0.8rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.9rem;
+  transition: background-color 0.3s ease;
+}
+
+.transaction-row:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.tx-type {
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.tx-type.buy {
+  color: var(--green);
+}
+
+.tx-type.sell {
+  color: var(--red);
+}
+
+.tx-pair {
+  font-weight: 600;
+}
+
+.tx-amount,
+.tx-price {
+  color: var(--white);
+}
+
+.tx-time,
+.tx-strategy {
+  color: var(--gray-light);
+  font-size: 0.8rem;
+}
+
+.tx-status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  display: inline-block;
+  text-align: center;
+}
+
+.tx-status.executed {
+  background-color: rgba(0, 200, 83, 0.1);
+  color: var(--green);
+}
+
+.tx-status.pending {
+  background-color: rgba(255, 215, 0, 0.1);
+  color: var(--gold);
+}
+
+.tx-status.failed {
+  background-color: rgba(255, 61, 87, 0.1);
+  color: var(--red);
+}
+
+@media (max-width: 768px) {
+  .transactions-table {
+    overflow-x: auto;
+  }
+
+  .table-header,
+  .transaction-row {
+    width: 700px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .transactions-list {
+    max-height: 400px;
+  }
+}

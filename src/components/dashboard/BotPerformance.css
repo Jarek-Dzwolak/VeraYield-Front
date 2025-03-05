@@ -1,0 +1,47 @@
+.performance-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+
+.performance-stat {
+  background-color: rgba(10, 14, 23, 0.4);
+  border-radius: 8px;
+  padding: 0.8rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.profit-chart-placeholder {
+  height: 120px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 480px) {
+  .performance-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .performance-stat {
+    padding: 1rem;
+  }
+
+  .profit-chart-placeholder {
+    height: 150px;
+  }
+}
+
+@media (min-width: 768px) {
+  .performance-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .profit-chart-placeholder {
+    height: 180px;
+  }
+}

@@ -1,0 +1,105 @@
+/* src/components/playground/DataImporter.css */
+.data-importer {
+  margin-bottom: 1rem;
+}
+
+.import-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.option-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-group label {
+  font-size: 0.9rem;
+  color: var(--gray-light);
+  margin-bottom: 0.4rem;
+}
+
+.option-group select,
+.option-group input {
+  padding: 0.6rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--white);
+  font-size: 0.9rem;
+}
+
+.date-range {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.date-input {
+  flex: 1;
+}
+
+.import-button {
+  width: 100%;
+  padding: 0.8rem;
+  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+  border: none;
+  border-radius: 6px;
+  color: var(--black);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.import-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.import-button:disabled {
+  background: #666;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+@media (min-width: 576px) {
+  .date-range {
+    flex-direction: row;
+    gap: 1rem;
+  }
+
+  .option-group.date-range .date-input {
+    width: 50%;
+  }
+}
+
+@media (min-width: 768px) {
+  .option-group {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .option-group label {
+    margin-bottom: 0;
+    margin-right: 1rem;
+    width: 30%;
+  }
+
+  .option-group select,
+  .option-group input {
+    width: 70%;
+  }
+
+  .option-group.date-range {
+    flex-direction: column;
+  }
+
+  .date-range {
+    width: 70%;
+    margin-left: auto;
+  }
+}

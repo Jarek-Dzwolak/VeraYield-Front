@@ -1,0 +1,160 @@
+/* src/components/dashboard/AccountBalance.css */
+.account-balance {
+  margin-bottom: 1.5rem;
+}
+
+.total-balance {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: rgba(10, 14, 23, 0.4);
+  border-radius: 8px;
+}
+
+.balance-label {
+  font-size: 0.9rem;
+  color: var(--gray-light);
+  margin-bottom: 0.5rem;
+}
+
+.balance-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 0.3rem;
+}
+
+.balance-change {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.balance-change.positive {
+  color: var(--green);
+}
+
+.balance-change.negative {
+  color: var(--red);
+}
+
+.allocation-chart-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.allocation-chart-placeholder {
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.chart-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--gold) 0% 45%,
+    var(--purple) 45% 70%,
+    #4ecdc4 70% 90%,
+    #4f4f4f 90% 100%
+  );
+  position: relative;
+}
+
+.chart-circle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: var(--gray-dark);
+}
+
+.allocation-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legend-color.btc {
+  background-color: var(--gold);
+}
+
+.legend-color.eth {
+  background-color: var(--purple);
+}
+
+.legend-color.usdt {
+  background-color: #4ecdc4;
+}
+
+.legend-color.other {
+  background-color: #4f4f4f;
+}
+
+.legend-name {
+  font-size: 0.9rem;
+}
+
+.legend-value {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.allocation-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.allocation-stat {
+  background-color: rgba(10, 14, 23, 0.4);
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  .allocation-chart-container {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .allocation-chart-placeholder {
+    flex: 1;
+  }
+
+  .allocation-legend {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .allocation-info {
+    flex-direction: row;
+  }
+
+  .allocation-stat {
+    flex: 1;
+  }
+}

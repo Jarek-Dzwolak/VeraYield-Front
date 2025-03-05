@@ -1,0 +1,106 @@
+/* src/components/playground/StrategySelector.css */
+.strategy-selector {
+  margin-bottom: 1rem;
+}
+
+.strategies-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.strategy-item {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.strategy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  background-color: rgba(10, 14, 23, 0.4);
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.strategy-header:hover {
+  background-color: rgba(10, 14, 23, 0.6);
+}
+
+.strategy-header.selected {
+  background-color: rgba(138, 43, 226, 0.2);
+  border-left: 3px solid var(--purple);
+}
+
+.strategy-name {
+  font-weight: 600;
+}
+
+.expand-icon {
+  font-size: 1.2rem;
+  color: var(--gray-light);
+}
+
+.strategy-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  padding: 0 1rem;
+}
+
+.strategy-details.expanded {
+  max-height: 500px;
+  padding: 1rem;
+  background-color: rgba(10, 14, 23, 0.2);
+}
+
+.strategy-description {
+  margin-bottom: 1rem;
+  color: var(--gray-light);
+  font-size: 0.9rem;
+}
+
+.parameters-list h3 {
+  font-size: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.parameter-item {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.8rem;
+}
+
+.parameter-item label {
+  font-size: 0.9rem;
+  color: var(--gray-light);
+  margin-bottom: 0.4rem;
+}
+
+.parameter-item input {
+  padding: 0.6rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--white);
+  font-size: 0.9rem;
+}
+
+@media (min-width: 576px) {
+  .parameter-item {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .parameter-item label {
+    margin-bottom: 0;
+    margin-right: 1rem;
+  }
+
+  .parameter-item input {
+    width: 120px;
+  }
+}

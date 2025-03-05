@@ -34,11 +34,11 @@ const Navbar = () => {
             </li>
             <li>
               <NavLink
-                to="/trading"
+                to="/playground"
                 className={({ isActive }) => (isActive ? "active" : "")}
                 onClick={() => setMenuOpen(false)}
               >
-                Trading
+                PlayGround
               </NavLink>
             </li>
             <li>
