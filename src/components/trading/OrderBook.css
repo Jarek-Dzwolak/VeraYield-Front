@@ -1,0 +1,36 @@
+.order-book {
+  margin-bottom: 1.5rem;
+}
+
+.order-book-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.8rem;
+  color: var(--gray-light);
+}
+
+.sell-orders,
+.buy-orders {
+  margin-bottom: 0.5rem;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.order-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.current-price {
+  text-align: center;
+  padding: 0.8rem;
+  margin: 0.5rem 0;
+  font-weight: 700;
+  font-size: 1.1rem;
+  background-color: rgba(10, 14, 23, 0.4);
+  border-radius: 4px;
+}
