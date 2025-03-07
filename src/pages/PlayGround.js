@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import StrategyTester from "../components/playground/StrategyTester";
 import DataImporter from "../components/playground/DataImporter";
-import ResultsViewer from "../components/playground/ResultsViewer";
+import CandleDataViewer from "../components/playground/CandleDataViewer";
 import StrategySelector from "../components/playground/StrategySelector";
 import "./PlayGround.css";
 
@@ -10,13 +10,19 @@ const PlayGround = () => {
   const [dataSource, setDataSource] = useState(null);
   const [testResults, setTestResults] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(false);
 
   const handleStrategySelect = (strategy) => {
     setSelectedStrategy(strategy);
   };
 
   const handleDataImport = (data) => {
-    setDataSource(data);
+    setIsDataLoading(true);
+    // Małe opóźnienie by pokazać stan ładowania
+    setTimeout(() => {
+      setDataSource(data);
+      setIsDataLoading(false);
+    }, 500);
   };
 
   const handleRunTest = () => {
@@ -82,6 +88,21 @@ const PlayGround = () => {
     return trades;
   };
 
+  // Decyduj, który widok pokazać w panelu wyników
+  const renderResultsPanel = () => {
+    if (dataSource && !testResults) {
+      // Jeśli mamy dane z importu, ale jeszcze nie uruchomiono testu, pokaż CandleDataViewer
+      return <CandleDataViewer data={dataSource} isLoading={isDataLoading} />;
+    } else if (testResults) {
+      // Jeśli mamy wyniki testu, pokaż standardowy ResultsViewer
+      // Tutaj można później zaimplementować komponent ResultsViewer
+      return <div className="card">Wyniki testu strategii</div>;
+    } else {
+      // Domyślnie pokaż pusty CandleDataViewer
+      return <CandleDataViewer data={null} isLoading={isDataLoading} />;
+    }
+  };
+
   return (
     <div className="playground-container">
       <div className="playground-header">
@@ -107,9 +128,7 @@ const PlayGround = () => {
           />
         </div>
 
-        <div className="results-panel">
-          <ResultsViewer results={testResults} isLoading={isRunning} />
-        </div>
+        <div className="results-panel">{renderResultsPanel()}</div>
       </div>
     </div>
   );

@@ -1,0 +1,269 @@
+.candle-viewer {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.data-header {
+  margin-bottom: 1rem;
+}
+
+.data-header h2 {
+  margin-bottom: 1rem;
+  color: var(--gold);
+  font-size: 1.3rem;
+}
+
+.data-summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--gray-darkest);
+  border-radius: 8px;
+  padding: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.label {
+  font-size: 0.8rem;
+  color: var(--gray-light);
+  margin-bottom: 0.2rem;
+}
+
+.value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: white;
+}
+
+.value.small {
+  font-size: 0.9rem;
+}
+
+.positive {
+  color: #4caf50;
+}
+
+.negative {
+  color: #f44336;
+}
+
+.time-range-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.time-range-selector span {
+  font-size: 0.8rem;
+  color: var(--gray-light);
+}
+
+.time-range-selector button {
+  background: var(--gray-darkest);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--gray-light);
+}
+
+.time-range-selector button.active {
+  background: var(--gold);
+  color: var(--gray-darkest);
+  border-color: var(--gold);
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+.tabs button {
+  background: none;
+  border: none;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--gray-light);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tabs button:hover {
+  color: white;
+}
+
+.tabs button.active {
+  color: var(--gold);
+  border-bottom: 2px solid var(--gold);
+  font-weight: 600;
+}
+
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.chart-container {
+  margin-bottom: 1.5rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  background-color: var(--gray-darkest);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Override Recharts default styles for dark theme */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+.recharts-text {
+  fill: var(--gray-light);
+}
+
+.recharts-default-tooltip {
+  background-color: var(--gray-dark) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.stat-card {
+  background-color: var(--gray-darkest);
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stat-card h4 {
+  margin-bottom: 0.8rem;
+  color: var(--gray-light);
+  font-size: 0.9rem;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
+}
+
+.stat-item span:first-child {
+  color: var(--gray-light);
+}
+
+.table-container {
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.data-table th {
+  background-color: var(--gray-darkest);
+  padding: 0.8rem;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--gray-light);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-table td {
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.data-table tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Loading state */
+.candle-viewer.loading,
+.candle-viewer.empty {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.loader {
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top: 4px solid var(--gold);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.placeholder-content {
+  color: var(--gray-light);
+}
+
+.placeholder-content h3 {
+  margin-bottom: 0.8rem;
+  color: white;
+}
+
+/* Media Queries */
+@media (min-width: 768px) {
+  .data-summary {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .tabs {
+    justify-content: flex-start;
+  }
+
+  .tabs button {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.8rem;
+  }
+
+  .chart-container {
+    height: 300px;
+  }
+}

@@ -1,98 +1,119 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./DataImporter.css";
 
 const DataImporter = ({ onDataImport }) => {
-  const [selectedSource, setSelectedSource] = useState("sample");
   const [selectedPair, setSelectedPair] = useState("BTC/USDT");
+  const [symbol, vsCurrency] = selectedPair.split("/");
   const [timeframe, setTimeframe] = useState("1d");
   const [startDate, setStartDate] = useState("2023-01-01");
   const [endDate, setEndDate] = useState("2023-06-30");
   const [isImporting, setIsImporting] = useState(false);
+  const [status, setStatus] = useState("");
+  const [availablePairs, setAvailablePairs] = useState([
+    "BTC/USDT",
+    "ETH/USDT",
+    "SOL/USDT",
+    "ADA/USDT",
+  ]);
 
-  const handleImport = () => {
+  // Pobierz dostępne pary z backendu
+  useEffect(() => {
+    const fetchAvailablePairs = async () => {
+      try {
+        const response = await fetch(
+          "http://localhost:5000/api/v1/data/available"
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (data.symbols && data.symbols.length > 0) {
+            // Przekształć symbole z formatu "BTCUSDT" na "BTC/USDT"
+            const formattedPairs = data.symbols.map((symbol) => {
+              // Zakładamy, że waluta bazowa to ostatnie 4-5 znaków (USDT, BUSD itp.)
+              if (symbol.endsWith("USDT")) {
+                const base = symbol.slice(0, -4);
+                return `${base}/USDT`;
+              }
+              return symbol;
+            });
+
+            if (formattedPairs.length > 0) {
+              setAvailablePairs(formattedPairs);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Błąd podczas pobierania dostępnych par:", error);
+      }
+    };
+
+    fetchAvailablePairs();
+  }, []);
+
+  const handleImport = async () => {
     setIsImporting(true);
+    setStatus("Rozpoczęto pobieranie danych...");
 
-    // Symulacja importu danych
-    setTimeout(() => {
-      const importedData = {
-        source: selectedSource,
+    try {
+      // Konwersja dat do formatu ISO
+      const startDateISO = new Date(startDate).toISOString();
+      const endDateISO = new Date(endDate).toISOString();
+
+      // Wywołaj endpoint backend'u do pobrania danych
+      const response = await fetch("http://localhost:5000/api/v1/data/fetch", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          symbol: symbol,
+          vsCurrency: vsCurrency,
+          interval: timeframe,
+          startDate: startDateISO,
+          endDate: endDateISO,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Błąd podczas pobierania danych: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setStatus(
+        "Dane zostały pomyślnie pobrane z Binance i zapisane w bazie danych!"
+      );
+
+      // Wywołaj funkcję callback z pobranymi danymi
+      onDataImport({
         pair: selectedPair,
         timeframe: timeframe,
         startDate: startDate,
         endDate: endDate,
-        candles: generateSampleCandles(),
-      };
-
-      onDataImport(importedData);
-      setIsImporting(false);
-    }, 1500);
-  };
-
-  const generateSampleCandles = () => {
-    const candles = [];
-    let currentPrice = 40000 + Math.random() * 5000;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const interval =
-      timeframe === "1d"
-        ? 86400000
-        : timeframe === "4h"
-        ? 14400000
-        : timeframe === "1h"
-        ? 3600000
-        : 900000;
-
-    for (let time = start.getTime(); time <= end.getTime(); time += interval) {
-      const volatility = currentPrice * 0.02;
-      const open = currentPrice;
-      const high = open + volatility * Math.random();
-      const low = open - volatility * Math.random();
-      const close = (open + high + low + high + low) / 5; // Biased toward high-low average
-      const volume = 10 + Math.random() * 90;
-
-      candles.push({
-        timestamp: new Date(time).toISOString(),
-        open,
-        high,
-        low,
-        close,
-        volume,
+        candles: data,
       });
-
-      currentPrice = close;
+    } catch (error) {
+      console.error("Błąd podczas importowania danych:", error);
+      setStatus(`Błąd: ${error.message}`);
+    } finally {
+      setIsImporting(false);
     }
-
-    return candles;
   };
 
   return (
     <div className="data-importer card">
-      <h2>Import Data</h2>
+      <h2>Import Data from Binance</h2>
 
       <div className="import-options">
-        <div className="option-group">
-          <label>Data Source</label>
-          <select
-            value={selectedSource}
-            onChange={(e) => setSelectedSource(e.target.value)}
-          >
-            <option value="sample">Sample Data</option>
-            <option value="binance">Binance</option>
-            <option value="coinbase">Coinbase</option>
-            <option value="custom">Custom CSV</option>
-          </select>
-        </div>
-
         <div className="option-group">
           <label>Trading Pair</label>
           <select
             value={selectedPair}
             onChange={(e) => setSelectedPair(e.target.value)}
           >
-            <option value="BTC/USDT">BTC/USDT</option>
-            <option value="ETH/USDT">ETH/USDT</option>
-            <option value="SOL/USDT">SOL/USDT</option>
-            <option value="ADA/USDT">ADA/USDT</option>
+            {availablePairs.map((pair) => (
+              <option key={pair} value={pair}>
+                {pair}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -128,13 +149,6 @@ const DataImporter = ({ onDataImport }) => {
             />
           </div>
         </div>
-
-        {selectedSource === "custom" && (
-          <div className="option-group">
-            <label>Upload CSV</label>
-            <input type="file" accept=".csv" />
-          </div>
-        )}
       </div>
 
       <button
@@ -142,8 +156,10 @@ const DataImporter = ({ onDataImport }) => {
         onClick={handleImport}
         disabled={isImporting}
       >
-        {isImporting ? "Importing..." : "Import Data"}
+        {isImporting ? "Importing..." : "Import Data from Binance"}
       </button>
+
+      {status && <div className="status-message">{status}</div>}
     </div>
   );
 };
