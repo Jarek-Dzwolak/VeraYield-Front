@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import "./StrategyTester.css";
 
 const StrategyTester = ({
@@ -7,6 +7,20 @@ const StrategyTester = ({
   onRunTest,
   isRunning,
 }) => {
+  const [initialCapital, setInitialCapital] = useState(10000);
+  const [positionSize, setPositionSize] = useState(20);
+  const [stopLoss, setStopLoss] = useState(2);
+  const [takeProfit, setTakeProfit] = useState(5);
+
+  const handleRunTest = () => {
+    onRunTest({
+      initialCapital,
+      positionSize,
+      stopLoss,
+      takeProfit,
+    });
+  };
+
   return (
     <div className="strategy-tester card">
       <h2>Run Backtest</h2>
@@ -51,28 +65,50 @@ const StrategyTester = ({
       <div className="test-options">
         <div className="option-group">
           <label>Initial Capital (USDT)</label>
-          <input type="number" defaultValue="10000" />
+          <input
+            type="number"
+            value={initialCapital}
+            onChange={(e) => setInitialCapital(Number(e.target.value))}
+          />
         </div>
 
         <div className="option-group">
           <label>Position Size (%)</label>
-          <input type="number" defaultValue="20" min="1" max="100" />
+          <input
+            type="number"
+            value={positionSize}
+            onChange={(e) => setPositionSize(Number(e.target.value))}
+            min="1"
+            max="100"
+          />
         </div>
 
         <div className="option-group">
           <label>Stop Loss (%)</label>
-          <input type="number" defaultValue="2" min="0" max="100" />
+          <input
+            type="number"
+            value={stopLoss}
+            onChange={(e) => setStopLoss(Number(e.target.value))}
+            min="0"
+            max="100"
+          />
         </div>
 
         <div className="option-group">
           <label>Take Profit (%)</label>
-          <input type="number" defaultValue="5" min="0" max="100" />
+          <input
+            type="number"
+            value={takeProfit}
+            onChange={(e) => setTakeProfit(Number(e.target.value))}
+            min="0"
+            max="100"
+          />
         </div>
       </div>
 
       <button
         className="run-test-button"
-        onClick={onRunTest}
+        onClick={handleRunTest}
         disabled={!selectedStrategy || !dataSource || isRunning}
       >
         {isRunning ? "Running Test..." : "Run Backtest"}

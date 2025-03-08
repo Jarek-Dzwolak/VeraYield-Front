@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import "./StrategySelector.css";
 
 const StrategySelector = ({ onStrategySelect, selectedStrategy }) => {
@@ -82,12 +82,52 @@ const StrategySelector = ({ onStrategySelect, selectedStrategy }) => {
         },
       ],
     },
+    // Dodaj nową strategię Hursta
+    {
+      id: "hurst",
+      name: "Hurst Channel Strategy",
+      description:
+        "Trading strategy based on Hurst Channel indicator, entering at lower band touch and exiting when price returns from upper extremum.",
+      parameters: [
+        { name: "period", label: "Period", type: "number", default: 30 },
+        {
+          name: "upperWidth",
+          label: "Upper Channel Width",
+          type: "number",
+          default: 1.16,
+        },
+        {
+          name: "lowerWidth",
+          label: "Lower Channel Width",
+          type: "number",
+          default: 1.18,
+        },
+        {
+          name: "firstEntry",
+          label: "First Entry Size (%)",
+          type: "number",
+          default: 10,
+        },
+        {
+          name: "secondEntry",
+          label: "Second Entry Size (%)",
+          type: "number",
+          default: 25,
+        },
+        {
+          name: "thirdEntry",
+          label: "Third Entry Size (%)",
+          type: "number",
+          default: 50,
+        },
+      ],
+    },
   ];
 
-  const [expandedStrategy, setExpandedStrategy] = React.useState(null);
-  const [parameters, setParameters] = React.useState({});
+  const [expandedStrategy, setExpandedStrategy] = useState(null);
+  const [parameters, setParameters] = useState({});
 
-  React.useEffect(() => {
+  useEffect(() => {
     // Inicjalizacja domyślnych parametrów
     const defaultParams = {};
     strategies.forEach((strategy) => {

@@ -14,7 +14,7 @@ import {
 } from "recharts";
 import "./CandleDataViewer.css";
 
-const CandleDataViewer = ({ data, isLoading }) => {
+const CandleDataViewer = ({ data, isLoading, hurstData }) => {
   const [activeTab, setActiveTab] = useState("price");
 
   console.log("Dane otrzymane w CandleDataViewer:", data);
@@ -52,8 +52,49 @@ const CandleDataViewer = ({ data, isLoading }) => {
     volume: parseFloat(candle.volume),
   }));
 
+  // Dodajemy dane wskaźnika Hursta jeśli są dostępne
+  let chartDataWithHurst = chartData;
+  if (hurstData && hurstData.middle && hurstData.middle.length > 0) {
+    // Mapowanie danych Hursta do dat
+    const hurstDateMap = {
+      middle: {},
+      upper: {},
+      lower: {},
+      oscillator: {},
+    };
+
+    hurstData.middle.forEach((item) => {
+      const date = new Date(item.time).toLocaleDateString();
+      hurstDateMap.middle[date] = item.value;
+    });
+
+    hurstData.upper.forEach((item) => {
+      const date = new Date(item.time).toLocaleDateString();
+      hurstDateMap.upper[date] = item.value;
+    });
+
+    hurstData.lower.forEach((item) => {
+      const date = new Date(item.time).toLocaleDateString();
+      hurstDateMap.lower[date] = item.value;
+    });
+
+    hurstData.oscillator.forEach((item) => {
+      const date = new Date(item.time).toLocaleDateString();
+      hurstDateMap.oscillator[date] = item.value;
+    });
+
+    // Dodajemy wskaźniki Hursta do danych wykresu
+    chartDataWithHurst = chartData.map((item) => ({
+      ...item,
+      hurstMiddle: hurstDateMap.middle[item.date],
+      hurstUpper: hurstDateMap.upper[item.date],
+      hurstLower: hurstDateMap.lower[item.date],
+      hurstOscillator: hurstDateMap.oscillator[item.date],
+    }));
+  }
+
   // Używamy wszystkich danych bez filtrowania
-  const filteredData = chartData;
+  const filteredData = chartDataWithHurst;
 
   // Calculate basic statistics
   const lastCandle = chartData[chartData.length - 1];
@@ -119,6 +160,14 @@ const CandleDataViewer = ({ data, isLoading }) => {
         >
           Price & Volume
         </button>
+        {hurstData && (
+          <button
+            className={activeTab === "hurst" ? "active" : ""}
+            onClick={() => setActiveTab("hurst")}
+          >
+            Hurst Channel
+          </button>
+        )}
         <button
           className={activeTab === "data" ? "active" : ""}
           onClick={() => setActiveTab("data")}
@@ -269,6 +318,110 @@ const CandleDataViewer = ({ data, isLoading }) => {
           </div>
         )}
 
+        {activeTab === "hurst" && hurstData && (
+          <div className="hurst-chart-tab">
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height={400}>
+                <ComposedChart data={filteredData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis domain={["auto", "auto"]} />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="close"
+                    stroke="#FFC107"
+                    name="Close Price"
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="hurstUpper"
+                    stroke="#F44336"
+                    name="Hurst Upper Band"
+                    dot={false}
+                    strokeDasharray="3 3"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="hurstMiddle"
+                    stroke="#2196F3"
+                    name="Hurst Middle"
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="hurstLower"
+                    stroke="#4CAF50"
+                    name="Hurst Lower Band"
+                    dot={false}
+                    strokeDasharray="3 3"
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="chart-container" style={{ marginTop: "20px" }}>
+              <h4>Hurst Oscillator</h4>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={filteredData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis domain={[-1, 1]} />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="hurstOscillator"
+                    stroke="#673AB7"
+                    name="Hurst Oscillator"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey={() => 0.9}
+                    stroke="#FF9800"
+                    strokeDasharray="3 3"
+                    name="Upper Threshold"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey={() => 0}
+                    stroke="#9E9E9E"
+                    strokeDasharray="3 3"
+                    name="Middle"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey={() => -0.9}
+                    stroke="#FF9800"
+                    strokeDasharray="3 3"
+                    name="Lower Threshold"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="stats-grid" style={{ marginTop: "20px" }}>
+              <div className="stat-card">
+                <h4>Hurst Channel Settings</h4>
+                <div className="stat-item">
+                  <span>Period:</span>
+                  <span>30</span>
+                </div>
+                <div className="stat-item">
+                  <span>Upper Width:</span>
+                  <span>1.16</span>
+                </div>
+                <div className="stat-item">
+                  <span>Lower Width:</span>
+                  <span>1.18</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === "data" && (
           <div className="data-table-tab">
             <div className="table-container">
@@ -281,6 +434,7 @@ const CandleDataViewer = ({ data, isLoading }) => {
                     <th>Low</th>
                     <th>Close</th>
                     <th>Volume</th>
+                    {hurstData && <th>Hurst Oscillator</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -292,6 +446,13 @@ const CandleDataViewer = ({ data, isLoading }) => {
                       <td>${candle.low.toFixed(2)}</td>
                       <td>${candle.close.toFixed(2)}</td>
                       <td>{candle.volume.toFixed(2)}</td>
+                      {hurstData && (
+                        <td>
+                          {candle.hurstOscillator !== undefined
+                            ? candle.hurstOscillator.toFixed(4)
+                            : "-"}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

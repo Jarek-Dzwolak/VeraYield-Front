@@ -1,16 +1,19 @@
 import React, { useState } from "react";
+import axios from "axios";
 import StrategyTester from "../components/playground/StrategyTester";
 import DataImporter from "../components/playground/DataImporter";
 import CandleDataViewer from "../components/playground/CandleDataViewer";
 import StrategySelector from "../components/playground/StrategySelector";
+import BacktestResults from "../components/playground/BacktestResults";
 import "./PlayGround.css";
 
 const PlayGround = () => {
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [dataSource, setDataSource] = useState(null);
-  const [testResults, setTestResults] = useState(null);
+  const [backtestResults, setBacktestResults] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isDataLoading, setIsDataLoading] = useState(false);
+  const [hurstData, setHurstData] = useState(null);
 
   const handleStrategySelect = (strategy) => {
     setSelectedStrategy(strategy);
@@ -18,6 +21,9 @@ const PlayGround = () => {
 
   const handleDataImport = (data) => {
     setIsDataLoading(true);
+    setBacktestResults(null); // Reset wyników gdy importujemy nowe dane
+    setHurstData(null);
+
     // Małe opóźnienie by pokazać stan ładowania
     setTimeout(() => {
       setDataSource(data);
@@ -25,78 +31,77 @@ const PlayGround = () => {
     }, 500);
   };
 
-  const handleRunTest = () => {
+  const handleRunTest = async (testOptions) => {
     if (!selectedStrategy || !dataSource) return;
 
     setIsRunning(true);
+    setBacktestResults(null);
 
-    // Symulacja obliczeń - tu byłoby faktyczne testowanie strategii
-    setTimeout(() => {
-      // Przykładowe wyniki
-      const results = {
-        profitLoss: 1876.42,
-        winRate: 68.5,
-        tradesCount: 42,
-        averageProfit: 44.68,
-        maxDrawdown: 432.18,
-        sharpeRatio: 1.32,
-        trades: generateSampleTrades(),
-      };
-
-      setTestResults(results);
-      setIsRunning(false);
-    }, 2000);
-  };
-
-  const generateSampleTrades = () => {
-    const trades = [];
-    let balance = 10000;
-    const startDate = new Date(2023, 0, 1);
-
-    for (let i = 0; i < 42; i++) {
-      const isWin = Math.random() > 0.3;
-      const amount = Math.random() * 0.2 + 0.1; // 0.1 to 0.3 BTC
-      const entryPrice = 40000 + Math.random() * 10000;
-      const exitPrice = isWin
-        ? entryPrice * (1 + Math.random() * 0.05)
-        : entryPrice * (1 - Math.random() * 0.03);
-      const profit = amount * (exitPrice - entryPrice);
-      balance += profit;
-
-      const entryDate = new Date(startDate);
-      entryDate.setHours(startDate.getHours() + i * 8);
-
-      const exitDate = new Date(entryDate);
-      exitDate.setHours(
-        entryDate.getHours() + Math.floor(Math.random() * 12) + 1
+    try {
+      // Zmieniony endpoint na /api/v1/backtest
+      const response = await axios.post(
+        "http://localhost:5000/api/v1/backtest",
+        {
+          strategy: selectedStrategy.id,
+          symbol: dataSource.pair.replace(/[^A-Z]/g, "").replace("USDT", ""),
+          vsCurrency: "USDT",
+          interval: dataSource.timeframe,
+          startDate: dataSource.startDate,
+          endDate: dataSource.endDate,
+          parameters: {
+            ...selectedStrategy.parameters,
+            initialCapital: testOptions.initialCapital,
+            positionSize: testOptions.positionSize,
+            stopLoss: testOptions.stopLoss,
+            takeProfit: testOptions.takeProfit,
+          },
+        }
       );
 
-      trades.push({
-        id: i + 1,
-        type: Math.random() > 0.5 ? "buy" : "sell",
-        pair: "BTC/USDT",
-        amount: amount.toFixed(4),
-        entryPrice: entryPrice.toFixed(2),
-        exitPrice: exitPrice.toFixed(2),
-        profit: profit.toFixed(2),
-        entryDate: entryDate.toISOString(),
-        exitDate: exitDate.toISOString(),
-        balance: balance.toFixed(2),
-      });
-    }
+      if (response.data.status === "success") {
+        setBacktestResults(response.data.results);
 
-    return trades;
+        // Jeśli mamy dane wskaźnika Hursta, ustawiamy je
+        if (
+          response.data.results.indicators &&
+          response.data.results.indicators.hurst
+        ) {
+          setHurstData(response.data.results.indicators.hurst);
+        }
+      }
+    } catch (error) {
+      console.error("Błąd podczas wykonywania backtestingu:", error);
+      alert(
+        "Nie udało się wykonać backtestingu. Sprawdź konsolę po więcej informacji."
+      );
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   // Decyduj, który widok pokazać w panelu wyników
   const renderResultsPanel = () => {
-    if (dataSource && !testResults) {
+    if (dataSource && !backtestResults) {
       // Jeśli mamy dane z importu, ale jeszcze nie uruchomiono testu, pokaż CandleDataViewer
-      return <CandleDataViewer data={dataSource} isLoading={isDataLoading} />;
-    } else if (testResults) {
-      // Jeśli mamy wyniki testu, pokaż standardowy ResultsViewer
-      // Tutaj można później zaimplementować komponent ResultsViewer
-      return <div className="card">Wyniki testu strategii</div>;
+      return (
+        <CandleDataViewer
+          data={dataSource}
+          isLoading={isDataLoading}
+          hurstData={hurstData}
+        />
+      );
+    } else if (backtestResults) {
+      // Jeśli mamy wyniki testu, pokazujemy oba komponenty - dane i wyniki
+      return (
+        <div className="results-container">
+          <CandleDataViewer
+            data={dataSource}
+            isLoading={isDataLoading}
+            hurstData={hurstData}
+          />
+          <BacktestResults results={backtestResults} />
+        </div>
+      );
     } else {
       // Domyślnie pokaż pusty CandleDataViewer
       return <CandleDataViewer data={null} isLoading={isDataLoading} />;
