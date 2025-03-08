@@ -58,26 +58,50 @@ const DataImporter = ({ onDataImport }) => {
       const startDateISO = new Date(startDate).toISOString();
       const endDateISO = new Date(endDate).toISOString();
 
-      // Wywołaj endpoint backend'u do pobrania danych
-      const response = await fetch("http://localhost:5000/api/v1/data/fetch", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          symbol: symbol,
-          vsCurrency: vsCurrency,
-          interval: timeframe,
-          startDate: startDateISO,
-          endDate: endDateISO,
-        }),
-      });
+      // Pierwszy krok: Zapisanie danych w bazie
+      const saveResponse = await fetch(
+        "http://localhost:5000/api/v1/data/fetch",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            symbol: symbol,
+            vsCurrency: vsCurrency,
+            interval: timeframe,
+            startDate: startDateISO,
+            endDate: endDateISO,
+          }),
+        }
+      );
 
-      if (!response.ok) {
-        throw new Error(`Błąd podczas pobierania danych: ${response.status}`);
+      if (!saveResponse.ok) {
+        throw new Error(
+          `Błąd podczas zapisywania danych: ${saveResponse.status}`
+        );
       }
 
-      const data = await response.json();
+      const saveData = await saveResponse.json();
+      console.log("Odpowiedź z zapisywania danych:", saveData);
+
+      // Drugi krok: Pobranie zapisanych danych
+      const getCandlesUrl = `http://localhost:5000/api/v1/data/${symbol}/${vsCurrency}/${timeframe}?startDate=${encodeURIComponent(
+        startDateISO
+      )}&endDate=${encodeURIComponent(endDateISO)}`;
+      console.log("Pobieranie danych z:", getCandlesUrl);
+
+      const getCandlesResponse = await fetch(getCandlesUrl);
+
+      if (!getCandlesResponse.ok) {
+        throw new Error(
+          `Błąd podczas pobierania danych: ${getCandlesResponse.status}`
+        );
+      }
+
+      const candlesData = await getCandlesResponse.json();
+      console.log("Pobrane dane świeczek:", candlesData);
+
       setStatus(
         "Dane zostały pomyślnie pobrane z Binance i zapisane w bazie danych!"
       );
@@ -88,7 +112,7 @@ const DataImporter = ({ onDataImport }) => {
         timeframe: timeframe,
         startDate: startDate,
         endDate: endDate,
-        candles: data,
+        candles: candlesData.data || [], // Dane świeczek znajdują się w polu 'data'
       });
     } catch (error) {
       console.error("Błąd podczas importowania danych:", error);

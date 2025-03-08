@@ -103,3 +103,70 @@
     margin-left: auto;
   }
 }
+/* Styl dla react-datepicker */
+.date-picker {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background-color: var(--gray-darkest);
+  color: white;
+  font-size: 0.95rem;
+}
+
+/* Styl dla react-datepicker */
+.date-picker {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background-color: var(--gray-darkest);
+  color: white;
+  font-size: 0.95rem;
+}
+
+/* Dostosowujemy style kalendarza do ciemnego motywu */
+.react-datepicker {
+  background-color: var(--gray-darkest);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.react-datepicker__header {
+  background-color: var(--gray-dark);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.react-datepicker__day-name,
+.react-datepicker__current-month {
+  color: white;
+}
+
+.react-datepicker__day {
+  color: white;
+}
+
+.react-datepicker__day:hover {
+  background-color: var(--gray-dark);
+}
+
+.react-datepicker__day--selected {
+  background-color: var(--gold);
+  color: var(--gray-darkest);
+}
+
+/* Style dla toastów, aby lepiej pasowały do ciemnego motywu */
+.Toastify__toast {
+  background-color: var(--gray-darkest);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.Toastify__toast-body {
+  font-size: 0.95rem;
+}
+
+.Toastify__progress-bar {
+  background: var(--gold);
+}

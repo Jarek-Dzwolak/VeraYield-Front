@@ -8,15 +8,16 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  BarChart,
+  Bar,
+  ComposedChart,
 } from "recharts";
 import "./CandleDataViewer.css";
 
 const CandleDataViewer = ({ data, isLoading }) => {
   const [activeTab, setActiveTab] = useState("price");
-  const [timeRange, setTimeRange] = useState("all");
 
-  console.log("Dane przed mapowaniem:", data);
-  console.log("Candles:", data?.candles);
+  console.log("Dane otrzymane w CandleDataViewer:", data);
 
   if (isLoading) {
     return (
@@ -28,10 +29,7 @@ const CandleDataViewer = ({ data, isLoading }) => {
     );
   }
 
-  // Zapewnienie, że `candles` jest tablicą
-  const candles = Array.isArray(data?.candles) ? data.candles : [];
-
-  if (candles.length === 0) {
+  if (!data || !data.candles || data.candles.length === 0) {
     return (
       <div className="candle-viewer card empty">
         <div className="placeholder-content">
@@ -44,9 +42,9 @@ const CandleDataViewer = ({ data, isLoading }) => {
     );
   }
 
-  // Konwersja danych na odpowiedni format
-  const chartData = candles.map((candle) => ({
-    date: new Date(candle.timestamp || candle.time).toLocaleDateString(),
+  // Konwertujemy dane do formatu, który jest oczekiwany przez komponenty wykresów
+  const chartData = data.candles.map((candle) => ({
+    date: new Date(candle.time || candle.timestamp).toLocaleDateString(),
     open: parseFloat(candle.open),
     high: parseFloat(candle.high),
     low: parseFloat(candle.low),
@@ -54,27 +52,254 @@ const CandleDataViewer = ({ data, isLoading }) => {
     volume: parseFloat(candle.volume),
   }));
 
+  // Używamy wszystkich danych bez filtrowania
+  const filteredData = chartData;
+
+  // Calculate basic statistics
+  const lastCandle = chartData[chartData.length - 1];
+  const firstCandle = chartData[0];
+  const priceChange = lastCandle.close - firstCandle.close;
+  const percentChange = (priceChange / firstCandle.close) * 100;
+
+  const highestPrice = Math.max(...chartData.map((d) => d.high));
+  const lowestPrice = Math.min(...chartData.map((d) => d.low));
+  const averageVolume =
+    chartData.reduce((sum, d) => sum + d.volume, 0) / chartData.length;
+
   return (
     <div className="candle-viewer card">
-      <h2>
-        Market Data: {data.pair} ({data.timeframe})
-      </h2>
-      <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" />
-          <YAxis />
-          <Tooltip formatter={(value) => [`$${value.toFixed(2)}`, "Price"]} />
-          <Legend />
-          <Line
-            type="monotone"
-            dataKey="close"
-            stroke="#FFC107"
-            name="Close Price"
-            dot={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div className="data-header">
+        <h2>
+          Market Data: {data.pair} ({data.timeframe})
+        </h2>
+        <div className="data-summary">
+          <div className="metric">
+            <span className="label">Last Price</span>
+            <span className="value">${lastCandle.close.toFixed(2)}</span>
+          </div>
+          <div className="metric">
+            <span className="label">Change</span>
+            <span
+              className={`value ${priceChange >= 0 ? "positive" : "negative"}`}
+            >
+              {priceChange >= 0 ? "+" : ""}
+              {priceChange.toFixed(2)} ({percentChange.toFixed(2)}%)
+            </span>
+          </div>
+          <div className="metric">
+            <span className="label">Period</span>
+            <span className="value small">
+              {new Date(data.startDate).toLocaleDateString()} -{" "}
+              {new Date(data.endDate).toLocaleDateString()}
+            </span>
+          </div>
+          <div className="metric">
+            <span className="label">Candles</span>
+            <span className="value">{data.candles.length}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="tabs">
+        <button
+          className={activeTab === "price" ? "active" : ""}
+          onClick={() => setActiveTab("price")}
+        >
+          Price Chart
+        </button>
+        <button
+          className={activeTab === "volume" ? "active" : ""}
+          onClick={() => setActiveTab("volume")}
+        >
+          Volume
+        </button>
+        <button
+          className={activeTab === "combined" ? "active" : ""}
+          onClick={() => setActiveTab("combined")}
+        >
+          Price & Volume
+        </button>
+        <button
+          className={activeTab === "data" ? "active" : ""}
+          onClick={() => setActiveTab("data")}
+        >
+          Data Table
+        </button>
+      </div>
+
+      <div className="tab-content">
+        {activeTab === "price" && (
+          <div className="price-chart-tab">
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={filteredData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis domain={["auto", "auto"]} />
+                  <Tooltip
+                    formatter={(value) => [`$${value.toFixed(2)}`, "Price"]}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="close"
+                    stroke="#FFC107"
+                    name="Close Price"
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="high"
+                    stroke="#4CAF50"
+                    name="High"
+                    dot={false}
+                    strokeDasharray="3 3"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="low"
+                    stroke="#F44336"
+                    name="Low"
+                    dot={false}
+                    strokeDasharray="3 3"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="stats-grid">
+              <div className="stat-card">
+                <h4>Price Statistics</h4>
+                <div className="stat-item">
+                  <span>Highest Price:</span>
+                  <span>${highestPrice.toFixed(2)}</span>
+                </div>
+                <div className="stat-item">
+                  <span>Lowest Price:</span>
+                  <span>${lowestPrice.toFixed(2)}</span>
+                </div>
+                <div className="stat-item">
+                  <span>Range:</span>
+                  <span>${(highestPrice - lowestPrice).toFixed(2)}</span>
+                </div>
+                <div className="stat-item">
+                  <span>Open:</span>
+                  <span>${firstCandle.open.toFixed(2)}</span>
+                </div>
+                <div className="stat-item">
+                  <span>Close:</span>
+                  <span>${lastCandle.close.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "volume" && (
+          <div className="volume-chart-tab">
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={filteredData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip
+                    formatter={(value) => [value.toFixed(2), "Volume"]}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
+                  <Legend />
+                  <Bar dataKey="volume" fill="#FFC107" name="Volume" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="stats-grid">
+              <div className="stat-card">
+                <h4>Volume Statistics</h4>
+                <div className="stat-item">
+                  <span>Average Volume:</span>
+                  <span>{averageVolume.toFixed(2)}</span>
+                </div>
+                <div className="stat-item">
+                  <span>Highest Volume:</span>
+                  <span>
+                    {Math.max(...filteredData.map((d) => d.volume)).toFixed(2)}
+                  </span>
+                </div>
+                <div className="stat-item">
+                  <span>Lowest Volume:</span>
+                  <span>
+                    {Math.min(...filteredData.map((d) => d.volume)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "combined" && (
+          <div className="combined-chart-tab">
+            <div className="chart-container">
+              <ResponsiveContainer width="100%" height={500}>
+                <ComposedChart data={filteredData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis yAxisId="left" domain={["auto", "auto"]} />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="close"
+                    stroke="#FFC107"
+                    name="Price"
+                    dot={false}
+                  />
+                  <Bar
+                    yAxisId="right"
+                    dataKey="volume"
+                    fill="#4CAF50"
+                    name="Volume"
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "data" && (
+          <div className="data-table-tab">
+            <div className="table-container">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Open</th>
+                    <th>High</th>
+                    <th>Low</th>
+                    <th>Close</th>
+                    <th>Volume</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredData.map((candle, index) => (
+                    <tr key={index}>
+                      <td>{candle.date}</td>
+                      <td>${candle.open.toFixed(2)}</td>
+                      <td>${candle.high.toFixed(2)}</td>
+                      <td>${candle.low.toFixed(2)}</td>
+                      <td>${candle.close.toFixed(2)}</td>
+                      <td>{candle.volume.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
