@@ -1,6 +1,17 @@
 /* src/components/playground/StrategySelector.css */
 .strategy-selector {
+  background-color: var(--gray-dark);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 1.5rem;
   margin-bottom: 1rem;
+}
+
+.strategy-selector h2 {
+  color: var(--gold);
+  font-size: 1.3rem;
+  margin-bottom: 1.5rem;
 }
 
 .strategies-list {
@@ -10,9 +21,10 @@
 }
 
 .strategy-item {
-  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   overflow: hidden;
+  background-color: rgba(10, 14, 23, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .strategy-header {
@@ -20,22 +32,22 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.8rem 1rem;
-  background-color: rgba(10, 14, 23, 0.4);
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.2s ease;
 }
 
 .strategy-header:hover {
-  background-color: rgba(10, 14, 23, 0.6);
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .strategy-header.selected {
-  background-color: rgba(138, 43, 226, 0.2);
-  border-left: 3px solid var(--purple);
+  background-color: rgba(138, 43, 226, 0.1);
+  border-left: 3px solid var(--purple, #9c27b0);
 }
 
 .strategy-name {
   font-weight: 600;
+  font-size: 1rem;
 }
 
 .expand-icon {
@@ -46,25 +58,31 @@
 .strategy-details {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.3s ease, padding 0.3s ease;
-  padding: 0 1rem;
+  transition: max-height 0.3s ease;
 }
 
 .strategy-details.expanded {
-  max-height: 500px;
-  padding: 1rem;
-  background-color: rgba(10, 14, 23, 0.2);
+  max-height: 1000px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .strategy-description {
-  margin-bottom: 1rem;
+  padding: 1rem;
   color: var(--gray-light);
   font-size: 0.9rem;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.parameters-list {
+  padding: 0 1rem 1rem;
 }
 
 .parameters-list h3 {
   font-size: 1rem;
   margin-bottom: 0.8rem;
+  color: var(--gray-light);
+  font-weight: 600;
 }
 
 .parameter-item {
@@ -76,7 +94,7 @@
 .parameter-item label {
   font-size: 0.9rem;
   color: var(--gray-light);
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.3rem;
 }
 
 .parameter-item input {
@@ -88,7 +106,7 @@
   font-size: 0.9rem;
 }
 
-@media (min-width: 576px) {
+@media (min-width: 768px) {
   .parameter-item {
     flex-direction: row;
     align-items: center;
@@ -98,9 +116,10 @@
   .parameter-item label {
     margin-bottom: 0;
     margin-right: 1rem;
+    width: 40%;
   }
 
   .parameter-item input {
-    width: 120px;
+    width: 60%;
   }
 }

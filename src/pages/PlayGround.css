@@ -42,6 +42,13 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* Domyślnie układ pionowy dla wyników */
+.results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 @media (min-width: 480px) {
   .playground-container {
     padding: 1rem;
@@ -69,15 +76,25 @@
 @media (min-width: 992px) {
   .playground-grid {
     flex-direction: row;
+    align-items: flex-start;
   }
 
   .setup-panel {
     flex: 1;
     max-width: 400px;
+    position: sticky;
+    top: 1rem;
   }
 
   .results-panel {
     flex: 2;
+  }
+
+  /* Na szerszych ekranach maksymalnie dwa elementy obok siebie */
+  .results-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 1.5rem;
   }
 }
 

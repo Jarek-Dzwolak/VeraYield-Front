@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import "./BacktestResults.css";
 
-const BacktestResults = ({ results }) => {
+const BacktestResults = ({ results, strategyType }) => {
   if (!results) {
     return (
       <div className="backtest-results card empty">
@@ -29,9 +29,24 @@ const BacktestResults = ({ results }) => {
     value: point.value,
   }));
 
+  // Sprawdzamy, czy to strategia Hursta
+  const isHurstStrategy = strategyType === "hurst";
+
   return (
     <div className="backtest-results card">
       <h2>Backtest Results</h2>
+
+      {isHurstStrategy && (
+        <div className="strategy-note">
+          <p>
+            <strong>Note:</strong> The Hurst Channel Strategy uses its own risk
+            management system. It enters positions when price touches the lower
+            band and exits only when price returns from the upper extreme back
+            to the channel. Traditional stop-loss and take-profit levels are not
+            used in this strategy.
+          </p>
+        </div>
+      )}
 
       <div className="stats-summary">
         <div className="stat-card">
@@ -46,6 +61,10 @@ const BacktestResults = ({ results }) => {
               ${results.netProfit.toFixed(2)} (
               {results.netProfitPercent.toFixed(2)}%)
             </span>
+          </div>
+          <div className="stat-item">
+            <span>Initial Capital:</span>
+            <span>${(results.balance - results.netProfit).toFixed(2)}</span>
           </div>
           <div className="stat-item">
             <span>Final Balance:</span>
@@ -85,6 +104,19 @@ const BacktestResults = ({ results }) => {
             <span>Losing Trades:</span>
             <span>{results.trades.filter((t) => t.profit <= 0).length}</span>
           </div>
+          {isHurstStrategy && (
+            <div className="stat-item">
+              <span>Avg. Entry Points per Trade:</span>
+              <span>
+                {(
+                  results.trades.reduce(
+                    (sum, trade) => sum + trade.entries.length,
+                    0
+                  ) / results.trades.length
+                ).toFixed(2)}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -120,7 +152,7 @@ const BacktestResults = ({ results }) => {
             <thead>
               <tr>
                 <th>Entry Date</th>
-                <th>Entry Price</th>
+                <th>Entry Price{isHurstStrategy ? "(s)" : ""}</th>
                 <th>Exit Date</th>
                 <th>Exit Price</th>
                 <th>Profit/Loss</th>
@@ -136,7 +168,12 @@ const BacktestResults = ({ results }) => {
                   <td>
                     <div className="entry-prices">
                       {trade.entries.map((entry, entryIdx) => (
-                        <div key={entryIdx}>${entry.price.toFixed(2)}</div>
+                        <div key={entryIdx}>
+                          ${entry.price.toFixed(2)}
+                          {isHurstStrategy && entry.size && (
+                            <span className="entry-size"> ({entry.size}%)</span>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </td>

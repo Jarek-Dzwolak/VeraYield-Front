@@ -12,12 +12,15 @@ const StrategyTester = ({
   const [stopLoss, setStopLoss] = useState(2);
   const [takeProfit, setTakeProfit] = useState(5);
 
+  // Sprawdzamy, czy wybrana strategia to Hurst
+  const isHurstStrategy = selectedStrategy?.id === "hurst";
+
   const handleRunTest = () => {
     onRunTest({
       initialCapital,
-      positionSize,
-      stopLoss,
-      takeProfit,
+      positionSize: isHurstStrategy ? 100 : positionSize, // Dla Hursta używamy pełnych wartości z parametrów strategii
+      stopLoss: isHurstStrategy ? 0 : stopLoss, // Dla Hursta ignorujemy stop-loss
+      takeProfit: isHurstStrategy ? 0 : takeProfit, // Dla Hursta ignorujemy take-profit
     });
   };
 
@@ -72,38 +75,66 @@ const StrategyTester = ({
           />
         </div>
 
-        <div className="option-group">
-          <label>Position Size (%)</label>
-          <input
-            type="number"
-            value={positionSize}
-            onChange={(e) => setPositionSize(Number(e.target.value))}
-            min="1"
-            max="100"
-          />
-        </div>
+        {!isHurstStrategy && (
+          <>
+            <div className="option-group">
+              <label>Position Size (%)</label>
+              <input
+                type="number"
+                value={positionSize}
+                onChange={(e) => setPositionSize(Number(e.target.value))}
+                min="1"
+                max="100"
+              />
+            </div>
 
-        <div className="option-group">
-          <label>Stop Loss (%)</label>
-          <input
-            type="number"
-            value={stopLoss}
-            onChange={(e) => setStopLoss(Number(e.target.value))}
-            min="0"
-            max="100"
-          />
-        </div>
+            <div className="option-group">
+              <label>Stop Loss (%)</label>
+              <input
+                type="number"
+                value={stopLoss}
+                onChange={(e) => setStopLoss(Number(e.target.value))}
+                min="0"
+                max="100"
+              />
+            </div>
 
-        <div className="option-group">
-          <label>Take Profit (%)</label>
-          <input
-            type="number"
-            value={takeProfit}
-            onChange={(e) => setTakeProfit(Number(e.target.value))}
-            min="0"
-            max="100"
-          />
-        </div>
+            <div className="option-group">
+              <label>Take Profit (%)</label>
+              <input
+                type="number"
+                value={takeProfit}
+                onChange={(e) => setTakeProfit(Number(e.target.value))}
+                min="0"
+                max="100"
+              />
+            </div>
+          </>
+        )}
+
+        {isHurstStrategy && (
+          <div className="hurst-strategy-note">
+            <p>
+              The Hurst Channel Strategy uses its own position sizing and risk
+              management approach:
+            </p>
+            <ul>
+              <li>
+                First entry: {selectedStrategy.parameters.firstEntry}% of
+                capital
+              </li>
+              <li>
+                Second entry: {selectedStrategy.parameters.secondEntry}% of
+                capital
+              </li>
+              <li>
+                Third entry: {selectedStrategy.parameters.thirdEntry}% of
+                capital
+              </li>
+              <li>Exit: When price returns from upper extreme to channel</li>
+            </ul>
+          </div>
+        )}
       </div>
 
       <button

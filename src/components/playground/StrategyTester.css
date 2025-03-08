@@ -1,6 +1,17 @@
 /* src/components/playground/StrategyTester.css */
 .strategy-tester {
   margin-bottom: 1rem;
+  background-color: var(--gray-dark);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 1.5rem;
+}
+
+.strategy-tester h2 {
+  color: var(--gold);
+  font-size: 1.3rem;
+  margin-bottom: 1.2rem;
 }
 
 .test-status {
@@ -28,6 +39,7 @@
   font-weight: 600;
   text-align: right; /* Wyrównanie do prawej */
 }
+
 .test-options {
   display: flex;
   flex-direction: column;
@@ -48,7 +60,7 @@
 
 .option-group input {
   padding: 0.6rem;
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: rgba(10, 14, 23, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   color: var(--white);
@@ -58,7 +70,11 @@
 .run-test-button {
   width: 100%;
   padding: 0.8rem;
-  background: linear-gradient(135deg, var(--purple), var(--purple-light));
+  background: linear-gradient(
+    135deg,
+    var(--purple, #9c27b0),
+    var(--purple-light, #ba68c8)
+  );
   border: none;
   border-radius: 6px;
   color: var(--white);
