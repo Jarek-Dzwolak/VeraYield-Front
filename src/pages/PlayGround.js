@@ -38,11 +38,11 @@ const PlayGround = () => {
     setBacktestResults(null);
 
     try {
-      // Zmieniony endpoint na /api/v1/backtest
+      // Zmieniony endpoint na /api/v1/strategy/backtest
       const response = await axios.post(
         "http://localhost:5000/api/v1/backtest",
         {
-          strategy: selectedStrategy.id,
+          strategy: "hurst", // Zawsze używamy strategii Hurst
           symbol: dataSource.pair.replace(/[^A-Z]/g, "").replace("USDT", ""),
           vsCurrency: "USDT",
           interval: dataSource.timeframe,
@@ -51,9 +51,7 @@ const PlayGround = () => {
           parameters: {
             ...selectedStrategy.parameters,
             initialCapital: testOptions.initialCapital,
-            positionSize: testOptions.positionSize,
-            stopLoss: testOptions.stopLoss,
-            takeProfit: testOptions.takeProfit,
+            usePreciseData: dataSource.hasPreciseData, // Używaj danych minutowych jeśli są dostępne
           },
         }
       );
@@ -99,7 +97,10 @@ const PlayGround = () => {
             isLoading={isDataLoading}
             hurstData={hurstData}
           />
-          <BacktestResults results={backtestResults} />
+          <BacktestResults
+            results={backtestResults}
+            strategyType="hurst" // Zawsze przekazujemy "hurst"
+          />
         </div>
       );
     } else {
@@ -111,9 +112,9 @@ const PlayGround = () => {
   return (
     <div className="playground-container">
       <div className="playground-header">
-        <h1>Strategy PlayGround</h1>
+        <h1>Hurst Strategy Tester</h1>
         <p>
-          Test your trading strategies on historical data and analyze
+          Test the Hurst Channel strategy on historical data and analyze
           performance
         </p>
       </div>

@@ -59,20 +59,13 @@
   color: var(--red, #f44336);
 }
 
-.time-range-selector {
+.timeframe-selector {
   display: flex;
-  align-items: center;
   gap: 0.5rem;
   margin-bottom: 1rem;
-  flex-wrap: wrap;
 }
 
-.time-range-selector span {
-  font-size: 0.8rem;
-  color: var(--gray-light);
-}
-
-.time-range-selector button {
+.timeframe-selector button {
   background: rgba(10, 14, 23, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 0.3rem 0.6rem;
@@ -82,10 +75,27 @@
   color: var(--gray-light);
 }
 
-.time-range-selector button.active {
+.timeframe-selector button.active {
   background: var(--gold);
   color: var(--gray-darkest);
   border-color: var(--gold);
+}
+
+.view-controls {
+  margin-bottom: 1rem;
+}
+
+.signal-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--gray-light);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.signal-toggle input {
+  cursor: pointer;
 }
 
 .tabs {
@@ -130,21 +140,11 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Override Recharts default styles for dark theme */
-.recharts-cartesian-grid-horizontal line,
-.recharts-cartesian-grid-vertical line {
-  stroke: rgba(255, 255, 255, 0.1);
-}
-
-.recharts-text {
-  fill: var(--gray-light);
-}
-
-.recharts-default-tooltip {
-  background-color: var(--gray-dark) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  border-radius: 4px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+/* Specyficzne style dla wykresów TradingView */
+.tv-chart {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .stats-grid {
@@ -209,7 +209,26 @@
   background-color: rgba(255, 255, 255, 0.03);
 }
 
-/* Loading state */
+/* Style sygnałów */
+.entry-signal-row {
+  background-color: rgba(76, 175, 80, 0.05);
+}
+
+.exit-signal-row {
+  background-color: rgba(244, 67, 54, 0.05);
+}
+
+.entry-signal {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.exit-signal {
+  color: #f44336;
+  font-weight: bold;
+}
+
+/* Stan ładowania */
 .candle-viewer.loading,
 .candle-viewer.empty {
   justify-content: center;
@@ -268,6 +287,10 @@
   }
 
   .chart-container {
-    height: 300px;
+    height: auto;
+  }
+
+  .tv-chart {
+    height: 300px !important;
   }
 }

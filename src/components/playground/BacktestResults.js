@@ -1,7 +1,5 @@
 import React from "react";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -10,6 +8,7 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  ReferenceDot,
 } from "recharts";
 import "./BacktestResults.css";
 
@@ -29,8 +28,64 @@ const BacktestResults = ({ results, strategyType }) => {
     value: point.value,
   }));
 
+  // Przygotuj dane dotyczące wejść i wyjść do wykresu
+  const tradesData = [];
+  results.trades.forEach((trade, index) => {
+    // Dodaj wszystkie punkty wejścia
+    trade.entries.forEach((entry) => {
+      tradesData.push({
+        time: new Date(entry.time).toLocaleDateString(),
+        value: results.equity.find((e) => e.time === entry.time)?.value || null,
+        type: "entry",
+        tradeIndex: index,
+        price: entry.price,
+        size: entry.size,
+      });
+    });
+
+    // Dodaj punkt wyjścia
+    tradesData.push({
+      time: new Date(trade.exit.time).toLocaleDateString(),
+      value:
+        results.equity.find((e) => e.time === trade.exit.time)?.value || null,
+      type: "exit",
+      tradeIndex: index,
+      price: trade.exit.price,
+      profit: trade.profit,
+      profitPercent: trade.profitPercent,
+    });
+  });
+
   // Sprawdzamy, czy to strategia Hursta
   const isHurstStrategy = strategyType === "hurst";
+
+  // Sprawdzamy, czy trejdy mają informacje o uśrednianiu pozycji
+  const hasPositionAveraging = results.trades.some(
+    (trade) =>
+      trade.entries.length > 1 &&
+      trade.entries.some((entry) => entry.size !== undefined)
+  );
+
+  // Oblicz średnią liczbę wejść na trade
+  const avgEntriesPerTrade =
+    results.trades.reduce((sum, trade) => sum + trade.entries.length, 0) /
+    results.trades.length;
+
+  // Oblicz statystyki dla poszczególnych typów wejść
+  const entryStats = {
+    single: results.trades.filter((trade) => trade.entries.length === 1).length,
+    double: results.trades.filter((trade) => trade.entries.length === 2).length,
+    triple: results.trades.filter((trade) => trade.entries.length === 3).length,
+  };
+
+  // Oblicz statystyki wyjść, jeśli są dostępne
+  const exitTypeStats = {};
+  results.trades.forEach((trade) => {
+    if (trade.exit.reason) {
+      exitTypeStats[trade.exit.reason] =
+        (exitTypeStats[trade.exit.reason] || 0) + 1;
+    }
+  });
 
   return (
     <div className="backtest-results card">
@@ -42,8 +97,7 @@ const BacktestResults = ({ results, strategyType }) => {
             <strong>Note:</strong> The Hurst Channel Strategy uses its own risk
             management system. It enters positions when price touches the lower
             band and exits only when price returns from the upper extreme back
-            to the channel. Traditional stop-loss and take-profit levels are not
-            used in this strategy.
+            to the channel. Position averaging is used to improve entry price.
           </p>
         </div>
       )}
@@ -104,21 +158,46 @@ const BacktestResults = ({ results, strategyType }) => {
             <span>Losing Trades:</span>
             <span>{results.trades.filter((t) => t.profit <= 0).length}</span>
           </div>
-          {isHurstStrategy && (
+          {hasPositionAveraging && (
             <div className="stat-item">
               <span>Avg. Entry Points per Trade:</span>
-              <span>
-                {(
-                  results.trades.reduce(
-                    (sum, trade) => sum + trade.entries.length,
-                    0
-                  ) / results.trades.length
-                ).toFixed(2)}
-              </span>
+              <span>{avgEntriesPerTrade.toFixed(2)}</span>
             </div>
           )}
         </div>
       </div>
+
+      {hasPositionAveraging && (
+        <div className="stats-summary">
+          <div className="stat-card">
+            <h3>Entry Distribution</h3>
+            <div className="stat-item">
+              <span>Single Entry Trades:</span>
+              <span>{entryStats.single}</span>
+            </div>
+            <div className="stat-item">
+              <span>Double Entry Trades:</span>
+              <span>{entryStats.double}</span>
+            </div>
+            <div className="stat-item">
+              <span>Triple Entry Trades:</span>
+              <span>{entryStats.triple}</span>
+            </div>
+          </div>
+
+          {Object.keys(exitTypeStats).length > 0 && (
+            <div className="stat-card">
+              <h3>Exit Types</h3>
+              {Object.entries(exitTypeStats).map(([reason, count]) => (
+                <div className="stat-item" key={reason}>
+                  <span>{reason.replace("_", " ")}:</span>
+                  <span>{count}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="chart-section">
         <h3>Equity Curve</h3>
@@ -140,6 +219,29 @@ const BacktestResults = ({ results, strategyType }) => {
                 fillOpacity={0.2}
                 name="Account Balance"
               />
+
+              {/* Dodaj referencyjne punkty dla wejść i wyjść */}
+              {tradesData.map((point, idx) =>
+                point.type === "entry" ? (
+                  <ReferenceDot
+                    key={`entry-${idx}`}
+                    x={point.time}
+                    y={point.value}
+                    r={4}
+                    fill="#00ff00"
+                    stroke="none"
+                  />
+                ) : (
+                  <ReferenceDot
+                    key={`exit-${idx}`}
+                    x={point.time}
+                    y={point.value}
+                    r={4}
+                    fill={point.profit >= 0 ? "#00ff00" : "#ff0000"}
+                    stroke="none"
+                  />
+                )
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -152,10 +254,12 @@ const BacktestResults = ({ results, strategyType }) => {
             <thead>
               <tr>
                 <th>Entry Date</th>
-                <th>Entry Price{isHurstStrategy ? "(s)" : ""}</th>
+                <th>Entry Price{hasPositionAveraging ? "(s)" : ""}</th>
                 <th>Exit Date</th>
                 <th>Exit Price</th>
                 <th>Profit/Loss</th>
+                {hasPositionAveraging && <th>Entries</th>}
+                {Object.keys(exitTypeStats).length > 0 && <th>Exit Reason</th>}
               </tr>
             </thead>
             <tbody>
@@ -170,7 +274,7 @@ const BacktestResults = ({ results, strategyType }) => {
                       {trade.entries.map((entry, entryIdx) => (
                         <div key={entryIdx}>
                           ${entry.price.toFixed(2)}
-                          {isHurstStrategy && entry.size && (
+                          {hasPositionAveraging && entry.size && (
                             <span className="entry-size"> ({entry.size}%)</span>
                           )}
                         </div>
@@ -187,6 +291,10 @@ const BacktestResults = ({ results, strategyType }) => {
                     ${trade.profit.toFixed(2)} ({trade.profitPercent.toFixed(2)}
                     %)
                   </td>
+                  {hasPositionAveraging && <td>{trade.entries.length}</td>}
+                  {Object.keys(exitTypeStats).length > 0 && (
+                    <td>{trade.exit.reason || "normal"}</td>
+                  )}
                 </tr>
               ))}
             </tbody>

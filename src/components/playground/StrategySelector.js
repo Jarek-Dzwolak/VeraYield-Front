@@ -1,232 +1,73 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import "./StrategySelector.css";
 
 const StrategySelector = ({ onStrategySelect, selectedStrategy }) => {
-  const strategies = [
-    {
-      id: "momentum",
-      name: "Momentum Strategy",
-      description:
-        "Trades based on price momentum indicators like RSI and MACD",
-      parameters: [
-        { name: "rsiPeriod", label: "RSI Period", type: "number", default: 14 },
-        {
-          name: "rsiOverbought",
-          label: "RSI Overbought",
-          type: "number",
-          default: 70,
-        },
-        {
-          name: "rsiOversold",
-          label: "RSI Oversold",
-          type: "number",
-          default: 30,
-        },
-        {
-          name: "macdFast",
-          label: "MACD Fast EMA",
-          type: "number",
-          default: 12,
-        },
-        {
-          name: "macdSlow",
-          label: "MACD Slow EMA",
-          type: "number",
-          default: 26,
-        },
-        {
-          name: "macdSignal",
-          label: "MACD Signal",
-          type: "number",
-          default: 9,
-        },
-      ],
+  // Teraz mamy tylko jedną strategię - Hurst
+  const defaultStrategy = {
+    id: "hurst",
+    name: "Hurst Channel Strategy",
+    description:
+      "Trading strategy based on Hurst Channel indicator, entering at lower band touch and exiting when price returns from upper extremum.",
+    parameters: {
+      period: 30,
+      upperWidth: 1.16,
+      lowerWidth: 1.18,
+      firstEntry: 10,
+      secondEntry: 25,
+      thirdEntry: 50,
     },
-    {
-      id: "breakout",
-      name: "Breakout Strategy",
-      description: "Identifies and trades breakouts from key price levels",
-      parameters: [
-        { name: "period", label: "Period", type: "number", default: 20 },
-        {
-          name: "multiplier",
-          label: "ATR Multiplier",
-          type: "number",
-          default: 2.5,
-        },
-        { name: "atrPeriod", label: "ATR Period", type: "number", default: 14 },
-      ],
-    },
-    {
-      id: "meanreversion",
-      name: "Mean Reversion",
-      description: "Trades based on price returning to its statistical mean",
-      parameters: [
-        {
-          name: "lookback",
-          label: "Lookback Period",
-          type: "number",
-          default: 50,
-        },
-        {
-          name: "entryDeviation",
-          label: "Entry Deviation",
-          type: "number",
-          default: 2,
-        },
-        {
-          name: "exitDeviation",
-          label: "Exit Deviation",
-          type: "number",
-          default: 0.5,
-        },
-      ],
-    },
-    // Dodaj nową strategię Hursta
-    {
-      id: "hurst",
-      name: "Hurst Channel Strategy",
-      description:
-        "Trading strategy based on Hurst Channel indicator, entering at lower band touch and exiting when price returns from upper extremum.",
-      parameters: [
-        { name: "period", label: "Period", type: "number", default: 30 },
-        {
-          name: "upperWidth",
-          label: "Upper Channel Width",
-          type: "number",
-          default: 1.16,
-        },
-        {
-          name: "lowerWidth",
-          label: "Lower Channel Width",
-          type: "number",
-          default: 1.18,
-        },
-        {
-          name: "firstEntry",
-          label: "First Entry Size (%)",
-          type: "number",
-          default: 10,
-        },
-        {
-          name: "secondEntry",
-          label: "Second Entry Size (%)",
-          type: "number",
-          default: 25,
-        },
-        {
-          name: "thirdEntry",
-          label: "Third Entry Size (%)",
-          type: "number",
-          default: 50,
-        },
-      ],
-    },
-  ];
-
-  const [expandedStrategy, setExpandedStrategy] = useState(null);
-  const [parameters, setParameters] = useState({});
+  };
 
   useEffect(() => {
-    // Inicjalizacja domyślnych parametrów
-    const defaultParams = {};
-    strategies.forEach((strategy) => {
-      const strategyParams = {};
-      strategy.parameters.forEach((param) => {
-        strategyParams[param.name] = param.default;
-      });
-      defaultParams[strategy.id] = strategyParams;
-    });
-    setParameters(defaultParams);
+    // Automatycznie wybierz strategię Hurst po załadowaniu komponentu
+    onStrategySelect(defaultStrategy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleStrategyClick = (strategyId) => {
-    setExpandedStrategy(expandedStrategy === strategyId ? null : strategyId);
-
-    if (expandedStrategy !== strategyId) {
-      const strategy = strategies.find((s) => s.id === strategyId);
-      onStrategySelect({
-        ...strategy,
-        parameters: parameters[strategyId],
-      });
-    }
-  };
-
-  const handleParameterChange = (strategyId, paramName, value) => {
-    const updatedParams = {
-      ...parameters,
-      [strategyId]: {
-        ...parameters[strategyId],
-        [paramName]: value,
-      },
-    };
-
-    setParameters(updatedParams);
-
-    if (selectedStrategy && selectedStrategy.id === strategyId) {
-      onStrategySelect({
-        ...selectedStrategy,
-        parameters: updatedParams[strategyId],
-      });
-    }
-  };
-
   return (
     <div className="strategy-selector card">
-      <h2>Select Strategy</h2>
-
+      <h2>Strategy</h2>
       <div className="strategies-list">
-        {strategies.map((strategy) => (
-          <div key={strategy.id} className="strategy-item">
-            <div
-              className={`strategy-header ${
-                selectedStrategy?.id === strategy.id ? "selected" : ""
-              }`}
-              onClick={() => handleStrategyClick(strategy.id)}
-            >
-              <span className="strategy-name">{strategy.name}</span>
-              <span className="expand-icon">
-                {expandedStrategy === strategy.id ? "−" : "+"}
-              </span>
-            </div>
+        <div className="strategy-item">
+          <div className="strategy-header selected">
+            <span className="strategy-name">{defaultStrategy.name}</span>
+            <span className="expand-icon">✓</span>
+          </div>
 
-            <div
-              className={`strategy-details ${
-                expandedStrategy === strategy.id ? "expanded" : ""
-              }`}
-            >
-              <p className="strategy-description">{strategy.description}</p>
+          <div className="strategy-details expanded">
+            <p className="strategy-description">
+              {defaultStrategy.description}
+            </p>
 
-              <div className="parameters-list">
-                <h3>Parameters</h3>
-                {strategy.parameters.map((param) => (
-                  <div key={param.name} className="parameter-item">
-                    <label htmlFor={`${strategy.id}-${param.name}`}>
-                      {param.label}
-                    </label>
-                    <input
-                      id={`${strategy.id}-${param.name}`}
-                      type={param.type}
-                      value={
-                        parameters[strategy.id]?.[param.name] || param.default
-                      }
-                      onChange={(e) =>
-                        handleParameterChange(
-                          strategy.id,
-                          param.name,
-                          param.type === "number"
-                            ? Number(e.target.value)
-                            : e.target.value
-                        )
-                      }
-                    />
-                  </div>
-                ))}
+            <div className="parameters-list">
+              <h3>Parameters</h3>
+              <div className="parameter-item">
+                <label>Period:</label>
+                <span>{defaultStrategy.parameters.period}</span>
+              </div>
+              <div className="parameter-item">
+                <label>Upper Channel Width:</label>
+                <span>{defaultStrategy.parameters.upperWidth}</span>
+              </div>
+              <div className="parameter-item">
+                <label>Lower Channel Width:</label>
+                <span>{defaultStrategy.parameters.lowerWidth}</span>
+              </div>
+              <div className="parameter-item">
+                <label>First Entry Size (%):</label>
+                <span>{defaultStrategy.parameters.firstEntry}%</span>
+              </div>
+              <div className="parameter-item">
+                <label>Second Entry Size (%):</label>
+                <span>{defaultStrategy.parameters.secondEntry}%</span>
+              </div>
+              <div className="parameter-item">
+                <label>Third Entry Size (%):</label>
+                <span>{defaultStrategy.parameters.thirdEntry}%</span>
               </div>
             </div>
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );
