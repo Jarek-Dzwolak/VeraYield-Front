@@ -132,7 +132,7 @@ const DataImporter = ({ onDataImport }) => {
 
       // Automatycznie pobierz dane 1-minutowe dla lepszej dokładności
       let candles1mData = null;
-      if (importPreciseData) {
+      if (importPreciseData && timeframe !== "1m") {
         setStatus("Pobieranie danych minutowych (może to potrwać dłużej)...");
 
         // Zapisanie danych 1-minutowych w bazie
@@ -177,6 +177,55 @@ const DataImporter = ({ onDataImport }) => {
         console.log("Pobrane dane świeczek 1m:", candles1mData);
       }
 
+      // Automatycznie pobierz dane 15-minutowe, gdy wybrany jest timeframe 1m
+      let candles15mData = null;
+      if (timeframe === "1m") {
+        setStatus(
+          "Pobieranie dodatkowych danych 15-minutowych dla kanału Hursta..."
+        );
+
+        // Zapisanie danych 15-minutowych w bazie
+        const save15mResponse = await fetch(
+          "http://localhost:5000/api/v1/data/fetch",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              symbol: symbol,
+              vsCurrency: vsCurrency,
+              interval: "15m",
+              startDate: startDateISO,
+              endDate: endDateISO,
+            }),
+          }
+        );
+
+        if (!save15mResponse.ok) {
+          console.warn(
+            `Błąd podczas zapisywania danych 15m: ${save15mResponse.status}`
+          );
+        } else {
+          // Pobranie zapisanych danych 15-minutowych
+          const get15mCandlesUrl = `http://localhost:5000/api/v1/data/${symbol}/${vsCurrency}/15m?startDate=${encodeURIComponent(
+            startDateISO
+          )}&endDate=${encodeURIComponent(endDateISO)}`;
+
+          setStatus("Przetwarzanie danych 15-minutowych...");
+          const get15mCandlesResponse = await fetch(get15mCandlesUrl);
+
+          if (get15mCandlesResponse.ok) {
+            candles15mData = await get15mCandlesResponse.json();
+            console.log("Pobrane dane świeczek 15m:", candles15mData);
+          } else {
+            console.warn(
+              `Błąd podczas pobierania danych 15m: ${get15mCandlesResponse.status}`
+            );
+          }
+        }
+      }
+
       // Sprawdzanie poprawności zakresu danych
       if (candlesData.data && candlesData.data.length > 0) {
         const firstCandleDate = new Date(candlesData.data[0].time);
@@ -195,6 +244,10 @@ const DataImporter = ({ onDataImport }) => {
             importPreciseData && candles1mData && candles1mData.data
               ? ` Pobrano również ${candles1mData.data.length} świec 1-minutowych.`
               : ""
+          }${
+            timeframe === "1m" && candles15mData && candles15mData.data
+              ? ` Pobrano również ${candles15mData.data.length} świec 15-minutowych dla kanału Hursta.`
+              : ""
           }`
         );
       }
@@ -208,11 +261,20 @@ const DataImporter = ({ onDataImport }) => {
         candles: candlesData.data || [],
         candles1m:
           importPreciseData && candles1mData ? candles1mData.data || [] : null,
+        candles15m:
+          timeframe === "1m" && candles15mData
+            ? candles15mData.data || []
+            : null,
         hasPreciseData:
           importPreciseData &&
           candles1mData &&
           candles1mData.data &&
           candles1mData.data.length > 0,
+        hasHurstData:
+          timeframe === "1m" &&
+          candles15mData &&
+          candles15mData.data &&
+          candles15mData.data.length > 0,
       });
     } catch (error) {
       console.error("Błąd podczas importowania danych:", error);
@@ -251,6 +313,7 @@ const DataImporter = ({ onDataImport }) => {
             <option value="1h">1 Hour</option>
             <option value="4h">4 Hours</option>
             <option value="1d">1 Day</option>
+            <option value="1m">1 Minute</option>
           </select>
         </div>
 
@@ -267,6 +330,12 @@ const DataImporter = ({ onDataImport }) => {
             The Hurst strategy works best with 1-minute data for precise
             entry/exit signals detection.
           </div>
+          {timeframe === "1m" && (
+            <div className="info-message success">
+              When using 1-minute timeframe, 15-minute data will be
+              automatically imported for Hurst channel calculations.
+            </div>
+          )}
         </div>
 
         <div className="option-group date-range">
