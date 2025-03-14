@@ -8,6 +8,9 @@ const StrategyTester = ({
   isRunning,
 }) => {
   const [initialCapital, setInitialCapital] = useState(10000);
+  const [useTrendFilter, setUseTrendFilter] = useState(true);
+  const [trendTimeframe, setTrendTimeframe] = useState("1h");
+  const [trailingStopPercent, setTrailingStopPercent] = useState(0.03); // 3% trailing stop
 
   const handleRunTest = () => {
     onRunTest({
@@ -15,6 +18,9 @@ const StrategyTester = ({
       positionSize: 100, // Dla Hursta używamy pełnych wartości z parametrów strategii
       stopLoss: 0, // Dla Hursta ignorujemy stop-loss
       takeProfit: 0, // Dla Hursta ignorujemy take-profit
+      useTrendFilter, // Dodajemy parametr filtra trendu
+      trendTimeframe, // Dodajemy timeframe dla filtra trendu
+      trailingStopPercent, // Dodajemy parametr trailing stopu
     });
   };
 
@@ -69,6 +75,53 @@ const StrategyTester = ({
           />
         </div>
 
+        <div className="option-group">
+          <label>Trailing Stop (%)</label>
+          <input
+            type="number"
+            value={trailingStopPercent}
+            min="0.005"
+            max="0.1"
+            step="0.005"
+            onChange={(e) => setTrailingStopPercent(Number(e.target.value))}
+          />
+          <div className="info-message">
+            Trailing stop activates after price reaches upper extreme and then
+            drops by this percentage.
+          </div>
+        </div>
+
+        {/* Opcje dla filtra trendu */}
+        <div className="option-group">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={useTrendFilter}
+              onChange={(e) => setUseTrendFilter(e.target.checked)}
+            />
+            Use Trend Filter (Only enter in uptrend or neutral)
+          </label>
+
+          {useTrendFilter && (
+            <div className="trend-timeframe-selector">
+              <label>Trend Timeframe:</label>
+              <select
+                value={trendTimeframe}
+                onChange={(e) => setTrendTimeframe(e.target.value)}
+              >
+                <option value="15m">15 Minutes</option>
+                <option value="1h">1 Hour</option>
+                <option value="4h">4 Hours</option>
+                <option value="1d">1 Day</option>
+              </select>
+              <div className="info-message">
+                Using a higher timeframe provides a better indication of the
+                overall market trend.
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="hurst-strategy-note">
           <p>The Hurst Channel Strategy uses the following position sizing:</p>
           <ul>
@@ -84,8 +137,17 @@ const StrategyTester = ({
               Third entry: {selectedStrategy?.parameters.thirdEntry || 50}% of
               capital
             </li>
-            <li>Exit: When price returns from upper extreme to channel</li>
+            <li>
+              Exit: When price returns from upper extreme to channel or via{" "}
+              {trailingStopPercent * 100}% trailing stop
+            </li>
           </ul>
+          {useTrendFilter && (
+            <p className="trend-filter-note">
+              <strong>Trend Filter enabled:</strong> Long positions will only be
+              opened when the {trendTimeframe} trend is bullish or neutral.
+            </p>
+          )}
         </div>
       </div>
 
