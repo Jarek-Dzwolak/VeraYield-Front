@@ -12,7 +12,7 @@ const BotPerformance = ({
   onTimeframeChange,
 }) => {
   const chartContainerRef = useRef(null);
-  const [timeframe, setTimeframe] = useState("24 Hours");
+  const [timeframe, setTimeframe] = useState(selectedTimeframe);
 
   // Referencje do wykresu i serii danych
   const chartRef = useRef(null);
@@ -145,7 +145,17 @@ const BotPerformance = ({
       chartData.candles.length > 0 &&
       candleSeriesRef.current
     ) {
-      candleSeriesRef.current.setData(chartData.candles);
+      // Mapowanie danych do formatu wymaganego przez light-weight-charts
+      const formattedCandles = chartData.candles.map((candle) => ({
+        time: candle.openTime / 1000, // Konwersja z millisekund na sekundy
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume,
+      }));
+
+      candleSeriesRef.current.setData(formattedCandles);
       chartRef.current.timeScale().fitContent();
     }
   }, [chartData.candles]);
@@ -157,21 +167,36 @@ const BotPerformance = ({
       chartData.hurstUpper.length > 0 &&
       hurstUpperRef.current
     ) {
-      hurstUpperRef.current.setData(chartData.hurstUpper);
+      // Formatowanie linii Hursta
+      const formattedHurstUpper = chartData.hurstUpper.map((point) => ({
+        time: point.time / 1000,
+        value: point.value,
+      }));
+      hurstUpperRef.current.setData(formattedHurstUpper);
     }
+
     if (
       chartData.hurstMiddle &&
       chartData.hurstMiddle.length > 0 &&
       hurstMiddleRef.current
     ) {
-      hurstMiddleRef.current.setData(chartData.hurstMiddle);
+      const formattedHurstMiddle = chartData.hurstMiddle.map((point) => ({
+        time: point.time / 1000,
+        value: point.value,
+      }));
+      hurstMiddleRef.current.setData(formattedHurstMiddle);
     }
+
     if (
       chartData.hurstLower &&
       chartData.hurstLower.length > 0 &&
       hurstLowerRef.current
     ) {
-      hurstLowerRef.current.setData(chartData.hurstLower);
+      const formattedHurstLower = chartData.hurstLower.map((point) => ({
+        time: point.time / 1000,
+        value: point.value,
+      }));
+      hurstLowerRef.current.setData(formattedHurstLower);
     }
   }, [chartData.hurstUpper, chartData.hurstMiddle, chartData.hurstLower]);
 
@@ -182,7 +207,11 @@ const BotPerformance = ({
       chartData.trendLine.length > 0 &&
       trendLineRef.current
     ) {
-      trendLineRef.current.setData(chartData.trendLine);
+      const formattedTrendLine = chartData.trendLine.map((point) => ({
+        time: point.time / 1000,
+        value: point.value,
+      }));
+      trendLineRef.current.setData(formattedTrendLine);
     }
   }, [chartData.trendLine]);
 
@@ -196,7 +225,7 @@ const BotPerformance = ({
       // Konwersja sygnałów na markery
       const markers = chartData.signals.map((signal) => {
         let marker = {
-          time: signal.time,
+          time: signal.time / 1000, // Konwersja z millisekund na sekundy
           position: signal.type === "entry" ? "belowBar" : "aboveBar",
           color: signal.type === "entry" ? "#4CAF50" : "#FF5252",
           shape: signal.type === "entry" ? "arrowUp" : "arrowDown",
@@ -248,7 +277,18 @@ const BotPerformance = ({
   const handleTimeframeChange = (e) => {
     const newTimeframe = e.target.value;
     setTimeframe(newTimeframe);
-    onTimeframeChange(newTimeframe);
+
+    // Mapowanie wyboru z interfejsu na faktyczne interwały czasowe Binance
+    const timeframeMap = {
+      "1 Minute": "1m",
+      "5 Minutes": "5m",
+      "15 Minutes": "15m",
+      "1 Hour": "1h",
+      "4 Hours": "4h",
+      "1 Day": "1d",
+    };
+
+    onTimeframeChange(timeframeMap[newTimeframe] || "15m");
   };
 
   // Komponent pary handlowej z listą rozwijaną
@@ -276,10 +316,12 @@ const BotPerformance = ({
             value={timeframe}
             onChange={handleTimeframeChange}
           >
-            <option>24 Hours</option>
-            <option>7 Days</option>
-            <option>30 Days</option>
-            <option>All Time</option>
+            <option>1 Minute</option>
+            <option>5 Minutes</option>
+            <option>15 Minutes</option>
+            <option>1 Hour</option>
+            <option>4 Hours</option>
+            <option>1 Day</option>
           </select>
         </div>
       </div>
