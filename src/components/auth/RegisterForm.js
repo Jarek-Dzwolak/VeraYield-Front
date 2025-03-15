@@ -1,4 +1,3 @@
-// src/components/auth/RegisterForm.js
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "./AuthForms.css";
@@ -84,68 +83,82 @@ const RegisterForm = () => {
   };
 
   return (
-    <form className="auth-form" onSubmit={handleSubmit}>
-      <h2>Rejestracja</h2>
+    <div className="auth-form-container">
+      <h2 className="auth-form-title">Rejestracja</h2>
 
       {registerError && <div className="error-message">{registerError}</div>}
 
-      <div className="form-group">
-        <label htmlFor="username">Nazwa użytkownika</label>
-        <input
-          type="text"
-          id="username"
-          name="username"
-          value={formData.username}
-          onChange={handleChange}
-          className={errors.username ? "error" : ""}
-        />
-        {errors.username && <div className="error-text">{errors.username}</div>}
-      </div>
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label htmlFor="username">Nazwa użytkownika</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            value={formData.username}
+            onChange={handleChange}
+            className={errors.username ? "error" : ""}
+            placeholder="Twoja nazwa użytkownika"
+          />
+          {errors.username && (
+            <div className="error-text">{errors.username}</div>
+          )}
+        </div>
 
-      <div className="form-group">
-        <label htmlFor="email">Email</label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          className={errors.email ? "error" : ""}
-        />
-        {errors.email && <div className="error-text">{errors.email}</div>}
-      </div>
+        <div className="form-group">
+          <label htmlFor="email">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className={errors.email ? "error" : ""}
+            placeholder="Twój adres email"
+          />
+          {errors.email && <div className="error-text">{errors.email}</div>}
+        </div>
 
-      <div className="form-group">
-        <label htmlFor="password">Hasło</label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          className={errors.password ? "error" : ""}
-        />
-        {errors.password && <div className="error-text">{errors.password}</div>}
-      </div>
+        <div className="form-group">
+          <label htmlFor="password">Hasło</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            className={errors.password ? "error" : ""}
+            placeholder="Minimum 8 znaków"
+          />
+          {errors.password && (
+            <div className="error-text">{errors.password}</div>
+          )}
+        </div>
 
-      <div className="form-group">
-        <label htmlFor="confirmPassword">Potwierdź hasło</label>
-        <input
-          type="password"
-          id="confirmPassword"
-          name="confirmPassword"
-          value={formData.confirmPassword}
-          onChange={handleChange}
-          className={errors.confirmPassword ? "error" : ""}
-        />
-        {errors.confirmPassword && (
-          <div className="error-text">{errors.confirmPassword}</div>
-        )}
-      </div>
+        <div className="form-group">
+          <label htmlFor="confirmPassword">Potwierdź hasło</label>
+          <input
+            type="password"
+            id="confirmPassword"
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            className={errors.confirmPassword ? "error" : ""}
+            placeholder="Powtórz hasło"
+          />
+          {errors.confirmPassword && (
+            <div className="error-text">{errors.confirmPassword}</div>
+          )}
+        </div>
 
-      <button type="submit" className="submit-button" disabled={isLoading}>
-        {isLoading ? "Rejestracja..." : "Zarejestruj się"}
-      </button>
+        <button type="submit" className="submit-button" disabled={isLoading}>
+          {isLoading ? (
+            <span className="loading-indicator"></span>
+          ) : (
+            "Zarejestruj się"
+          )}
+        </button>
+      </form>
 
       <div className="auth-redirect">
         Masz już konto?{" "}
@@ -153,7 +166,7 @@ const RegisterForm = () => {
           Zaloguj się
         </Link>
       </div>
-    </form>
+    </div>
   );
 };
 

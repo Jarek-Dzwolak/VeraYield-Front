@@ -1,25 +1,31 @@
 import React from "react";
-import { Outlet, Link } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import "./AuthLayout.css";
+import logoImage from "../assets/img/Logo.jpeg"; // Upewnij się, że ścieżka jest poprawna
 
 const AuthLayout = () => {
   return (
     <div className="auth-layout">
-      <div className="auth-header">
-        <Link to="/" className="logo-link">
-          <div className="auth-logo">
-            <span className="logo-text">VeraYield</span>
-            <span className="logo-subtitle">Trading Bot</span>
+      <div className="auth-content">
+        <div className="main-logo-container">
+          <div className="main-logo-wrapper">
+            <img src={logoImage} alt="VeraYield" className="main-logo" />
           </div>
-        </Link>
+          <div className="brand-container">
+            <h1 className="brand-name">Human Intelligence</h1>
+            <span className="brand-tagline">Powered by AI</span>
+          </div>
+        </div>
+
+        <div className="auth-card">
+          <Outlet />
+        </div>
       </div>
-      <div className="auth-container">
-        <Outlet />
-      </div>
+
       <div className="auth-footer">
         <p>
-          &copy; {new Date().getFullYear()} VeraYield Trading Bot. Wszelkie
-          prawa zastrzeżone.
+          &copy; {new Date().getFullYear()} VeraYield. Wszelkie prawa
+          zastrzeżone.
         </p>
       </div>
     </div>

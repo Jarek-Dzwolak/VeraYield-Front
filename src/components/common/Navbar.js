@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import "./Navbar.css";
+import logo from "../../assets/img/LogoSolo.jpeg";
+import { FiPower } from "react-icons/fi"; //
 
 const Navbar = ({ onLogout }) => {
   const location = useLocation();
@@ -72,7 +74,7 @@ const Navbar = ({ onLogout }) => {
     <nav className="navbar">
       <div className="logo-container">
         <Link to="/">
-          <img src="/logo.png" alt="VeraYield" className="logo" />
+          <img src={logo} alt="VeraYield" className="logo" />
         </Link>
       </div>
 
@@ -88,7 +90,7 @@ const Navbar = ({ onLogout }) => {
             <Link to="/portfolio">Portfolio</Link>
           </li>
           <li className={isActive("/settings") ? "active" : ""}>
-            <Link to="/settings">Ustawienia</Link>
+            <Link to="/settings">Settings</Link>
           </li>
         </ul>
       </div>
@@ -99,7 +101,9 @@ const Navbar = ({ onLogout }) => {
             <div className="user-notification">3</div>
             <div className="user-name">{user.username || "Użytkownik"}</div>
             <button className="logout-button" onClick={handleLogout}>
-              <span className="logout-icon">⏻</span>
+              <span className="logout-icon">
+                <FiPower />
+              </span>
             </button>
           </>
         )}

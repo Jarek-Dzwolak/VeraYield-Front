@@ -1,8 +1,6 @@
-// src/components/auth/LoginForm.js
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "./AuthForms.css";
-import "../../assets/img/Logo.jpeg";
 
 const LoginForm = ({ onLogin }) => {
   const navigate = useNavigate();
@@ -77,46 +75,61 @@ const LoginForm = ({ onLogin }) => {
   };
 
   return (
-    <form className="auth-form" onSubmit={handleSubmit}>
-      <h2>Logowanie</h2>
+    <div className="auth-form-container">
+      <div className="form-title-container">
+        <h2 className="auth-form-title">Logowanie</h2>
+        <div className="form-title-underline">
+          <span className="underline-gradient"></span>
+        </div>
+      </div>
 
       {loginError && <div className="error-message">{loginError}</div>}
 
-      <div className="form-group">
-        <label htmlFor="email">Email</label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          className={errors.email ? "error" : ""}
-        />
-        {errors.email && <div className="error-text">{errors.email}</div>}
-      </div>
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label htmlFor="email">Email</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            className={errors.email ? "error" : ""}
+            placeholder="Twój adres email"
+          />
+          {errors.email && <div className="error-text">{errors.email}</div>}
+        </div>
 
-      <div className="form-group">
-        <label htmlFor="password">Hasło</label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          value={formData.password}
-          onChange={handleChange}
-          className={errors.password ? "error" : ""}
-        />
-        {errors.password && <div className="error-text">{errors.password}</div>}
-      </div>
+        <div className="form-group">
+          <label htmlFor="password">Hasło</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            className={errors.password ? "error" : ""}
+            placeholder="Twoje hasło"
+          />
+          {errors.password && (
+            <div className="error-text">{errors.password}</div>
+          )}
+        </div>
 
-      <div className="form-links">
-        <Link to="/forgot-password" className="forgot-password-link">
-          Zapomniałeś hasła?
-        </Link>
-      </div>
+        <div className="form-links">
+          <Link to="/forgot-password" className="forgot-password-link">
+            Zapomniałeś hasła?
+          </Link>
+        </div>
 
-      <button type="submit" className="submit-button" disabled={isLoading}>
-        {isLoading ? "Logowanie..." : "Zaloguj się"}
-      </button>
+        <button type="submit" className="submit-button" disabled={isLoading}>
+          {isLoading ? (
+            <span className="loading-indicator"></span>
+          ) : (
+            "Zaloguj się"
+          )}
+        </button>
+      </form>
 
       <div className="auth-redirect">
         Nie masz konta?{" "}
@@ -124,7 +137,8 @@ const LoginForm = ({ onLogin }) => {
           Zarejestruj się
         </Link>
       </div>
-    </form>
+    </div>
   );
 };
+
 export default LoginForm;
