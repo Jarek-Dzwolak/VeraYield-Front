@@ -3,10 +3,10 @@ import { Outlet } from "react-router-dom";
 import Navbar from "../components/common/Navbar";
 import "./MainLayout.css";
 
-const MainLayout = () => {
+const MainLayout = ({ onLogout }) => {
   return (
     <div className="app">
-      <Navbar />
+      <Navbar onLogout={onLogout} />
       <main className="main-content">
         <Outlet />
       </main>
