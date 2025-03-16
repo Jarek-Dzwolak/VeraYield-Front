@@ -61,6 +61,8 @@ const LoginForm = ({ onLogin }) => {
 
       // Zapisz token w local storage
       localStorage.setItem("token", data.token);
+      // Dodaj również pod kluczem "authToken" dla kompatybilności z Dashboard.js
+      localStorage.setItem("authToken", data.token);
 
       // Wywołaj funkcję callback po zalogowaniu
       if (onLogin) onLogin(data.user);
