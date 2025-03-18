@@ -1,10 +1,10 @@
 // src/pages/Dashboard.js
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import BotPerformance from "../components/dashboard/BotPerformance";
-import ActiveTradingPairs from "../components/dashboard/ActiveTradingPairs";
-import AccountBalance from "../components/dashboard/AccountBalance";
+import InstanceSettings from "../components/dashboard/InstanceSettings";
 import BotTransactions from "../components/dashboard/BotTransactions";
 import ActionPanel from "../components/dashboard/ActionPanel";
+
 import "./Dashboard.css";
 
 // Stałe wartości konfiguracyjne
@@ -20,6 +20,8 @@ const Dashboard = () => {
     candles: [],
     price: null,
     lastUpdate: null,
+    hurstChannel: null, // Dodane - informacje o kanale Hursta
+    emaValue: null, // Dodane - informacje o wartości EMA
   });
   const [accountInfo, setAccountInfo] = useState({
     balance: 0,
@@ -27,12 +29,43 @@ const Dashboard = () => {
     engaged: 0,
     available: 0,
   });
-  const [transactions, setTransactions] = useState([]);
+  const [instanceId, setInstanceId] = useState(null);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
 
   // Referencje dla WebSocket
   const socketRef = useRef(null);
   const clientIdRef = useRef(null);
+  const periodicDebugRef = useRef(null); // Dodano dla debugowania
+
+  // Pobierz dane instancji po załadowaniu komponentu
+  useEffect(() => {
+    const fetchInstanceData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        // Pobierz instancje
+        const response = await fetch("/api/v1/instances/active", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+
+        // Jeśli jest aktywna instancja, ustaw jej ID
+        if (data.instances && data.instances.length > 0) {
+          setInstanceId(data.instances[0]._id);
+        }
+      } catch (error) {
+        console.error("Błąd podczas pobierania instancji:", error);
+      }
+    };
+
+    fetchInstanceData();
+  }, []);
 
   // Funkcja do nawiązywania połączenia WebSocket
   const connectWebSocket = useCallback(
@@ -99,6 +132,10 @@ const Dashboard = () => {
         socket.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+            console.log(
+              `[${new Date().toLocaleTimeString()}] WS otrzymano:`,
+              data.type
+            );
 
             // Obsługa różnych typów wiadomości
             switch (data.type) {
@@ -107,37 +144,55 @@ const Dashboard = () => {
                 console.log("WebSocket client ID:", data.clientId);
                 break;
 
+              // ZMIENIONY FRAGMENT - zmodyfikowana obsługa wiadomości marketData
               case "marketData":
                 // Aktualizuj dane cenowe
                 if (data.data && data.data.type === "kline") {
                   const candle = data.data.data;
+                  const currentPrice = parseFloat(candle.close);
+                  console.log(
+                    `Otrzymano nową cenę: ${currentPrice} [${new Date().toLocaleTimeString()}]`
+                  );
 
-                  // Aktualizuj tablicę świec
+                  // Aktualizuj stan React
                   setChartData((prevData) => {
-                    // Znajdź indeks istniejącej świecy
-                    const existingIndex = prevData.candles.findIndex(
-                      (c) => c.openTime === candle.openTime
+                    // Sprawdź, czy cena faktycznie się zmieniła
+                    const priceChanged = prevData.price !== currentPrice;
+                    console.log(
+                      `Zmiana ceny: ${prevData.price} -> ${currentPrice}, zmieniono: ${priceChanged}`
                     );
 
-                    // Utwórz nową tablicę świec
-                    let newCandles;
-                    if (existingIndex !== -1) {
-                      // Aktualizuj istniejącą świecę
-                      newCandles = [...prevData.candles];
-                      newCandles[existingIndex] = candle;
-                    } else {
-                      // Dodaj nową świecę i ogranicz rozmiar
-                      newCandles = [...prevData.candles, candle].slice(-30); // Ogranicz do 30 świec
-                    }
-
-                    // Aktualizuj stan
+                    // Zwróć nowy obiekt z nową ceną (nawet jeśli wartość jest taka sama)
                     return {
                       ...prevData,
-                      candles: newCandles,
-                      price: parseFloat(candle.close),
+                      candles: prevData.candles, // Zachowaj istniejące świece
+                      price: currentPrice,
                       lastUpdate: new Date(),
                     };
                   });
+
+                  // Bezpośrednio aktualizuj DOM (obejście React)
+                  try {
+                    const priceElement =
+                      document.querySelector(".current-price");
+                    if (priceElement) {
+                      priceElement.textContent = `$${currentPrice.toFixed(2)}`;
+                      console.log(
+                        `DOM zaktualizowany bezpośrednio: $${currentPrice.toFixed(
+                          2
+                        )}`
+                      );
+                    } else {
+                      console.warn(
+                        "Nie znaleziono elementu .current-price w DOM"
+                      );
+                    }
+                  } catch (domError) {
+                    console.error(
+                      "Błąd podczas bezpośredniej aktualizacji DOM:",
+                      domError
+                    );
+                  }
                 }
                 break;
 
@@ -148,14 +203,33 @@ const Dashboard = () => {
                   data.data?.length || 0
                 );
                 setChartData((prevData) => ({
-                  ...prevData,
                   candles: data.data || [],
                   price:
                     data.data?.length > 0
                       ? parseFloat(data.data[data.data.length - 1].close)
                       : null,
                   lastUpdate: new Date(),
+                  hurstChannel: prevData.hurstChannel,
+                  emaValue: prevData.emaValue,
                 }));
+                break;
+
+              case "indicators":
+                // Obsługa informacji o wskaźnikach
+                setChartData((prevData) => ({
+                  ...prevData,
+                  hurstChannel: data.hurstChannel || prevData.hurstChannel,
+                  emaValue:
+                    data.emaValue !== undefined
+                      ? data.emaValue
+                      : prevData.emaValue,
+                  lastUpdate: new Date(),
+                }));
+                console.log(
+                  "Otrzymano dane wskaźników:",
+                  data.hurstChannel ? "Hurst" : "brak Hurst",
+                  data.emaValue ? `EMA: ${data.emaValue}` : "brak EMA"
+                );
                 break;
 
               case "error":
@@ -243,34 +317,58 @@ const Dashboard = () => {
     ) {
       console.log("Używanie zapisanego URL WebSocket:", savedWsUrl);
       connectWebSocket(savedWsUrl);
-      return;
+    } else {
+      // W przeciwnym razie pobierz nowe informacje o WebSocket
+      fetch("/api/v1/market/ws-info", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`Błąd HTTP: ${response.status}`);
+          }
+          return response.json();
+        })
+        .then((data) => {
+          console.log("Otrzymano info o WebSocket:", data);
+          // Zapisz URL w sesji
+          sessionStorage.setItem("wsUrl", data.webSocketUrl);
+          sessionStorage.setItem("lastWsRequestTime", currentTime.toString());
+          // Połącz z WebSocket
+          connectWebSocket(data.webSocketUrl);
+        })
+        .catch((error) => {
+          console.error(
+            "Błąd podczas pobierania informacji o WebSocket:",
+            error
+          );
+          // Użyj domyślnego adresu
+          connectWebSocket("ws://localhost:3000");
+        });
     }
 
-    // W przeciwnym razie pobierz nowe informacje o WebSocket
-    fetch("/api/v1/market/ws-info", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Błąd HTTP: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then((data) => {
-        console.log("Otrzymano info o WebSocket:", data);
-        // Zapisz URL w sesji
-        sessionStorage.setItem("wsUrl", data.webSocketUrl);
-        sessionStorage.setItem("lastWsRequestTime", currentTime.toString());
-        // Połącz z WebSocket
-        connectWebSocket(data.webSocketUrl);
-      })
-      .catch((error) => {
-        console.error("Błąd podczas pobierania informacji o WebSocket:", error);
-        // Użyj domyślnego adresu
-        connectWebSocket("ws://localhost:3000");
+    // Dodaj debugowanie stanu co 10 sekund
+    periodicDebugRef.current = setInterval(() => {
+      console.log("Debugowanie stanu co 10s:", {
+        isConnected,
+        chartDataLength: chartData.candles?.length || 0,
+        lastUpdate: chartData.lastUpdate
+          ? chartData.lastUpdate.toLocaleTimeString()
+          : "brak",
+        currentPrice: chartData.price,
+        hasHurstChannel: !!chartData.hurstChannel,
+        hasEmaValue: chartData.emaValue !== null,
+        instanceId: instanceId,
       });
+    }, 10000);
+
+    return () => {
+      // Wyczyść interwał debugowania
+      if (periodicDebugRef.current) {
+        clearInterval(periodicDebugRef.current);
+      }
+    };
   }, [connectWebSocket]);
 
   // Wysyłanie pinga co 30 sekund, aby utrzymać połączenie
@@ -302,6 +400,11 @@ const Dashboard = () => {
         );
         socketRef.current.close();
       }
+
+      // Wyczyść interwał debugowania
+      if (periodicDebugRef.current) {
+        clearInterval(periodicDebugRef.current);
+      }
     };
   }, []);
 
@@ -328,14 +431,9 @@ const Dashboard = () => {
           onTimeframeChange={() => {}}
         />
 
-        {/* <AccountBalance accountInfo={accountInfo} /> */}
+        {instanceId && <InstanceSettings instanceId={instanceId} />}
 
-        <ActiveTradingPairs
-          pairs={[{ symbol: DEFAULT_PAIR, status: "active" }]}
-          onSelectPair={() => {}}
-        />
-
-        <BotTransactions transactions={transactions} />
+        <BotTransactions />
       </div>
 
       <ActionPanel

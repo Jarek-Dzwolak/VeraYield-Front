@@ -24,7 +24,7 @@
 
 .table-header {
   display: grid;
-  grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr 1fr 1fr;
+  grid-template-columns: 0.8fr 0.8fr 1fr 1fr 1fr 1.2fr 1.2fr 1fr 0.8fr;
   padding: 0.8rem 0.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   font-size: 0.8rem;
@@ -38,7 +38,7 @@
 
 .transaction-row {
   display: grid;
-  grid-template-columns: 0.8fr 1fr 1.2fr 1fr 0.8fr 1fr 1fr;
+  grid-template-columns: 0.8fr 0.8fr 1fr 1fr 1fr 1.2fr 1.2fr 1fr 0.8fr;
   padding: 0.8rem 0.5rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   font-size: 0.9rem;
@@ -72,10 +72,25 @@
   color: var(--white);
 }
 
-.tx-time,
-.tx-strategy {
+.tx-time {
   color: var(--gray-light);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tx-profit {
+  color: var(--white);
+  font-weight: 600;
+}
+
+.tx-profit.profit {
+  color: var(--green);
+}
+
+.tx-profit.loss {
+  color: var(--red);
 }
 
 .tx-status {
@@ -86,9 +101,14 @@
   text-align: center;
 }
 
-.tx-status.executed {
+.tx-status.active {
   background-color: rgba(0, 200, 83, 0.1);
   color: var(--green);
+}
+
+.tx-status.closed {
+  background-color: rgba(255, 61, 87, 0.1);
+  color: var(--red);
 }
 
 .tx-status.pending {
@@ -96,19 +116,33 @@
   color: var(--gold);
 }
 
-.tx-status.failed {
-  background-color: rgba(255, 61, 87, 0.1);
+.loading-indicator {
+  text-align: center;
+  padding: 2rem;
+  color: var(--gray-light);
+}
+
+.error-message {
+  text-align: center;
+  padding: 2rem;
   color: var(--red);
 }
 
-@media (max-width: 768px) {
+.no-transactions {
+  text-align: center;
+  padding: 2rem;
+  color: var(--gray-light);
+}
+
+@media (max-width: 1200px) {
   .transactions-table {
     overflow-x: auto;
   }
 
   .table-header,
   .transaction-row {
-    width: 700px;
+    width: 900px;
+    min-width: 900px;
   }
 }
 

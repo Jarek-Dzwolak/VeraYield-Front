@@ -27,8 +27,9 @@ const Navbar = ({ onLogout }) => {
         });
 
         if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
+          const data = await response.json();
+          // Endpoint zwraca dane w formacie { user: {...} }
+          setUser(data.user);
         } else {
           // Jeśli nie udało się pobrać profilu, prawdopodobnie token wygasł
           localStorage.removeItem("token");
@@ -61,6 +62,7 @@ const Navbar = ({ onLogout }) => {
       console.error("Błąd podczas wylogowywania:", error);
     } finally {
       // Zawsze usuń token i wywołaj callback wylogowania
+      localStorage.removeItem("token");
       if (onLogout) onLogout();
     }
   };
@@ -99,7 +101,7 @@ const Navbar = ({ onLogout }) => {
         {!isLoading && user && (
           <>
             <div className="user-notification">3</div>
-            <div className="user-name">{user.username || "Użytkownik"}</div>
+            <div className="user-name">{user.email}</div>
             <button className="logout-button" onClick={handleLogout}>
               <span className="logout-icon">
                 <FiPower />

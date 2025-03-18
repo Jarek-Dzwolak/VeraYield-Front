@@ -16,6 +16,22 @@ const BotPerformance = ({
   const candleSeriesRef = useRef(null);
   const priceLineRef = useRef(null);
 
+  // Referencje do serii linii dla wskaźników
+  const lowerBandSeriesRef = useRef(null);
+  const upperBandSeriesRef = useRef(null);
+  const emaSeriesRef = useRef(null);
+
+  // Referencje do inicjalizacji band
+  const upperBandInitialized = useRef(false);
+  const lowerBandInitialized = useRef(false);
+  const emaInitialized = useRef(false);
+  const updateIntervalRef = useRef(null);
+
+  // Referencje do aktualizacji w czasie rzeczywistym
+  const priceUpdateRef = useRef(0);
+  const animationFrameRef = useRef(null);
+  const lastPriceRef = useRef(null);
+
   // Uproszczone statystyki
   const [stats, setStats] = useState({
     currentPrice: "0.00",
@@ -80,6 +96,26 @@ const BotPerformance = ({
           wickDownColor: "#FF5252",
         });
 
+        // Dodaj serie dla kanału Hursta (linie)
+        upperBandSeriesRef.current = chartRef.current.addLineSeries({
+          color: "rgba(255, 70, 70, 0.8)",
+          lineWidth: 1,
+          title: "Upper Band",
+        });
+
+        lowerBandSeriesRef.current = chartRef.current.addLineSeries({
+          color: "rgba(76, 175, 80, 0.8)",
+          lineWidth: 1,
+          title: "Lower Band",
+        });
+
+        // Dodaj serię dla EMA
+        emaSeriesRef.current = chartRef.current.addLineSeries({
+          color: "rgba(33, 150, 243, 0.8)",
+          lineWidth: 2,
+          title: "EMA",
+        });
+
         // Obsługa zmiany rozmiaru okna
         const handleResize = () => {
           if (chartRef.current && chartContainerRef.current) {
@@ -91,11 +127,27 @@ const BotPerformance = ({
 
         window.addEventListener("resize", handleResize);
 
+        // Dodaj interwał wymuszający aktualizację co 1 sekundę
+        updateIntervalRef.current = setInterval(() => {
+          if (chartRef.current && chartContainerRef.current) {
+            // Wymuś przerysowanie wykresu
+            chartRef.current.applyOptions({
+              width: chartContainerRef.current.clientWidth,
+            });
+          }
+        }, 1000);
+
         return () => {
           window.removeEventListener("resize", handleResize);
           if (chartRef.current) {
             chartRef.current.remove();
             chartRef.current = null;
+          }
+          if (updateIntervalRef.current) {
+            clearInterval(updateIntervalRef.current);
+          }
+          if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
           }
         };
       } catch (error) {
@@ -106,11 +158,16 @@ const BotPerformance = ({
 
   // Aktualizacja danych świecowych
   useEffect(() => {
-    if (chartData.candles?.length > 0 && candleSeriesRef.current) {
+    if (
+      chartData.candles?.length > 0 &&
+      candleSeriesRef.current &&
+      chartRef.current
+    ) {
       try {
         console.log(
           `Aktualizacja wykresu - liczba świec: ${chartData.candles.length}`
         );
+        console.log("LastUpdate:", chartData.lastUpdate);
 
         // Mapowanie danych do formatu wymaganego przez lightweight-charts
         const formattedCandles = chartData.candles
@@ -147,29 +204,17 @@ const BotPerformance = ({
         formattedCandles.sort((a, b) => a.time - b.time);
 
         if (formattedCandles.length > 0) {
-          // Ustaw dane świecowe
-          candleSeriesRef.current.setData(formattedCandles);
+          // Rozdziel dane między świece historyczne i bieżącą świecę
+          const historicalCandles = formattedCandles.slice(0, -1);
+          const currentCandle = formattedCandles[formattedCandles.length - 1];
 
-          // Ustaw aktualną cenę
-          if (chartData.price) {
-            // Usuń starą linię ceny, jeśli istnieje
-            if (priceLineRef.current) {
-              candleSeriesRef.current.removePriceLine(priceLineRef.current);
-            }
-
-            // Dodaj nową linię ceny
-            priceLineRef.current = candleSeriesRef.current.createPriceLine({
-              price: chartData.price,
-              color: "#2196F3",
-              lineWidth: 2,
-              lineStyle: 0,
-              axisLabelVisible: true,
-              title: "Current Price",
-            });
+          // Aktualizuj dane historyczne tylko gdy są nowe świece
+          if (historicalCandles.length > 0) {
+            candleSeriesRef.current.setData(historicalCandles);
           }
 
-          // Dopasuj skalę czasową, aby zobaczyć wszystkie dane
-          chartRef.current.timeScale().fitContent();
+          // Aktualizuj bieżącą świecę
+          candleSeriesRef.current.update(currentCandle);
 
           // Aktualizuj statystyki
           const latestCandle = formattedCandles[formattedCandles.length - 1];
@@ -193,11 +238,192 @@ const BotPerformance = ({
               : "Unknown",
           });
         }
+
+        // Dodaj aktualizację kanału Hursta, jeśli dostępny
+        if (
+          chartData.hurstChannel &&
+          upperBandSeriesRef.current &&
+          lowerBandSeriesRef.current
+        ) {
+          // Pobierz aktualny timestamp
+          const timestamp = formattedCandles[formattedCandles.length - 1].time;
+
+          // Przy pierwszej aktualizacji, inicjalizuj linie z kilkoma punktami historycznymi
+          if (!upperBandInitialized.current) {
+            const historyPoints = [];
+            // Dodaj 5 ostatnich punktów z tą samą wartością, aby linia nie zaczynała się nagle
+            for (
+              let i = Math.max(0, formattedCandles.length - 5);
+              i < formattedCandles.length;
+              i++
+            ) {
+              historyPoints.push({
+                time: formattedCandles[i].time,
+                value: chartData.hurstChannel.upperBand,
+              });
+            }
+            upperBandSeriesRef.current.setData(historyPoints);
+            upperBandInitialized.current = true;
+          } else {
+            // Aktualizuj tylko ostatni punkt
+            upperBandSeriesRef.current.update({
+              time: timestamp,
+              value: chartData.hurstChannel.upperBand,
+            });
+          }
+
+          // To samo dla dolnej bandy
+          if (!lowerBandInitialized.current) {
+            const historyPoints = [];
+            for (
+              let i = Math.max(0, formattedCandles.length - 5);
+              i < formattedCandles.length;
+              i++
+            ) {
+              historyPoints.push({
+                time: formattedCandles[i].time,
+                value: chartData.hurstChannel.lowerBand,
+              });
+            }
+            lowerBandSeriesRef.current.setData(historyPoints);
+            lowerBandInitialized.current = true;
+          } else {
+            lowerBandSeriesRef.current.update({
+              time: timestamp,
+              value: chartData.hurstChannel.lowerBand,
+            });
+          }
+
+          console.log("Zaktualizowano kanał Hursta na wykresie");
+        }
+
+        // Dodaj aktualizację EMA, jeśli dostępna
+        if (chartData.emaValue !== null && emaSeriesRef.current) {
+          const timestamp = formattedCandles[formattedCandles.length - 1].time;
+
+          // Przy pierwszej aktualizacji, inicjalizuj linię EMA
+          if (!emaInitialized.current) {
+            const historyPoints = [];
+            for (
+              let i = Math.max(0, formattedCandles.length - 5);
+              i < formattedCandles.length;
+              i++
+            ) {
+              historyPoints.push({
+                time: formattedCandles[i].time,
+                value: chartData.emaValue,
+              });
+            }
+            emaSeriesRef.current.setData(historyPoints);
+            emaInitialized.current = true;
+          } else {
+            // Aktualizuj tylko ostatni punkt
+            emaSeriesRef.current.update({
+              time: timestamp,
+              value: chartData.emaValue,
+            });
+          }
+
+          console.log("Zaktualizowano EMA na wykresie:", chartData.emaValue);
+        }
       } catch (error) {
         console.error("Błąd podczas aktualizacji wykresu:", error);
       }
     }
-  }, [chartData.candles, chartData.price, chartData.lastUpdate]);
+  }, [chartData]);
+
+  // UseEffect dla aktualizacji cen w czasie rzeczywistym
+  useEffect(() => {
+    // Funkcja do aktualizacji wykresu w pętli animacji
+    const updateChartAnimation = () => {
+      // Sprawdź, czy mamy aktualne dane
+      if (chartRef.current && candleSeriesRef.current && chartData.price) {
+        // Dodaj log aby widzieć aktualizacje ceny
+        console.log(
+          `Aktualizacja wykresu z ceną: ${chartData.price} (zmiana #${priceUpdateRef.current})`
+        );
+
+        // Zwiększ licznik aktualizacji
+        priceUpdateRef.current++;
+
+        // Aktualizuj linię ceny bieżącej
+        if (priceLineRef.current) {
+          candleSeriesRef.current.removePriceLine(priceLineRef.current);
+        }
+
+        priceLineRef.current = candleSeriesRef.current.createPriceLine({
+          price: chartData.price,
+          color: "#2196F3",
+          lineWidth: 2,
+          lineStyle: 0,
+          axisLabelVisible: true,
+          title: `Current: ${chartData.price.toFixed(2)}`,
+        });
+
+        // Aktualizuj również bieżącą świecę
+        if (chartData.candles && chartData.candles.length > 0) {
+          const currentCandle = chartData.candles[chartData.candles.length - 1];
+
+          // Upewnij się, że wszystkie wartości są liczbami
+          const formattedCandle = {
+            time: Math.floor(currentCandle.openTime / 1000),
+            open:
+              typeof currentCandle.open === "string"
+                ? parseFloat(currentCandle.open)
+                : currentCandle.open,
+            high: Math.max(
+              typeof currentCandle.high === "string"
+                ? parseFloat(currentCandle.high)
+                : currentCandle.high,
+              chartData.price
+            ),
+            low: Math.min(
+              typeof currentCandle.low === "string"
+                ? parseFloat(currentCandle.low)
+                : currentCandle.low,
+              chartData.price
+            ),
+            close: chartData.price,
+          };
+
+          // Aktualizuj świecę
+          candleSeriesRef.current.update(formattedCandle);
+        }
+
+        // Wymuszenie przerysowania wykresu
+        if (chartContainerRef.current) {
+          chartRef.current.applyOptions({
+            width: chartContainerRef.current.clientWidth,
+          });
+        }
+
+        // Zapisz ostatnią cenę
+        lastPriceRef.current = chartData.price;
+
+        // Aktualizuj statystyki cenowe
+        setStats((prev) => ({
+          ...prev,
+          currentPrice: `${chartData.price.toFixed(2)}`,
+          lastUpdate: new Date().toLocaleTimeString(),
+        }));
+      }
+
+      // Kontynuuj pętlę animacji
+      animationFrameRef.current = requestAnimationFrame(updateChartAnimation);
+    };
+
+    // Rozpocznij pętlę animacji tylko jeśli jesteśmy połączeni
+    if (isConnected) {
+      animationFrameRef.current = requestAnimationFrame(updateChartAnimation);
+    }
+
+    // Czyszczenie po odmontowaniu komponentu
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isConnected, chartData.price]); // Usunięto zależność od chartData.candles, dodano tylko chartData.price
 
   return (
     <div className="bot-performance card">
