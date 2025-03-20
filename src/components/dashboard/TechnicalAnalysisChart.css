@@ -1,0 +1,249 @@
+/* src/components/dashboard/TechnicalAnalysisChart.css - responsywny dla desktop i mobile */
+.technical-analysis-chart {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+}
+
+.chart-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  padding: 0.75rem;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.chart-inactive {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  width: 100%;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.chart-container.loading,
+.chart-container.error,
+.chart-container.empty {
+  text-align: center;
+  color: #9e9eaa;
+}
+
+.chart-container.error {
+  color: #f44336;
+}
+
+.loader {
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top: 2px solid #6c5ce7;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 0.5rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.control-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.control-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: #fff;
+}
+
+.control-group input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #6c5ce7;
+}
+
+.timeframe {
+  font-size: 0.75rem;
+  color: #9e9eaa;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.chart-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.chart-info {
+  font-size: 0.75rem;
+  color: #9e9eaa;
+  text-align: center;
+  padding: 0.25rem 0.5rem;
+  width: 100%;
+}
+
+.activate-chart-btn,
+.close-btn,
+.hide-chart-btn {
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  background-color: #6c5ce7;
+  border: none;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.activate-chart-btn:hover,
+.close-btn:hover,
+.hide-chart-btn:hover {
+  background-color: rgba(108, 92, 231, 0.8);
+}
+
+/* Style dla Recharts */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+.recharts-xAxis .recharts-cartesian-axis-line,
+.recharts-yAxis .recharts-cartesian-axis-line {
+  stroke: rgba(255, 255, 255, 0.2);
+}
+
+.recharts-xAxis .recharts-cartesian-axis-tick-line,
+.recharts-yAxis .recharts-cartesian-axis-tick-line {
+  stroke: rgba(255, 255, 255, 0.2);
+}
+
+.recharts-xAxis .recharts-cartesian-axis-tick-value,
+.recharts-yAxis .recharts-cartesian-axis-tick-value {
+  fill: #9e9eaa;
+  font-size: 0.7rem;
+}
+
+.recharts-tooltip-wrapper {
+  z-index: 100;
+}
+
+.recharts-default-tooltip {
+  background-color: #1e1e24 !important;
+  border: 1px solid #6c5ce7 !important;
+  border-radius: 4px !important;
+  padding: 0.5rem !important;
+  color: #fff !important;
+}
+
+.recharts-tooltip-label {
+  color: #9e9eaa !important;
+}
+
+.recharts-legend-item-text {
+  color: #9e9eaa !important;
+}
+
+/* Media Queries dla różnych rozmiarów ekranów */
+@media (max-width: 767px) {
+  .chart-wrapper {
+    height: 250px;
+  }
+
+  .control-group label {
+    font-size: 0.7rem;
+  }
+
+  .activate-chart-btn,
+  .close-btn,
+  .hide-chart-btn {
+    width: 100%;
+  }
+
+  .chart-controls {
+    margin-bottom: 0.5rem;
+  }
+
+  .recharts-xAxis .recharts-cartesian-axis-tick-value,
+  .recharts-yAxis .recharts-cartesian-axis-tick-value {
+    font-size: 0.65rem;
+  }
+
+  .recharts-legend-item-text {
+    font-size: 0.65rem !important;
+  }
+
+  .recharts-legend-wrapper {
+    font-size: 0.7rem !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .chart-controls {
+    flex-wrap: nowrap;
+  }
+
+  .control-group {
+    flex-wrap: nowrap;
+  }
+
+  .chart-footer {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .chart-info {
+    width: auto;
+    flex: 1;
+  }
+
+  .chart-wrapper {
+    height: 400px;
+  }
+
+  .control-group label {
+    font-size: 0.8rem;
+  }
+
+  .timeframe {
+    font-size: 0.8rem;
+  }
+}

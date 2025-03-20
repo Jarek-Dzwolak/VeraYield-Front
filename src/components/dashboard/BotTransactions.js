@@ -3,11 +3,14 @@ import "./BotTransactions.css";
 
 const BotTransactions = () => {
   const [transactions, setTransactions] = useState([]);
+  const [activeInstances, setActiveInstances] = useState([]);
+  const [selectedInstance, setSelectedInstance] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Pobierz aktywne instancje
   useEffect(() => {
-    const fetchTransactions = async () => {
+    const fetchActiveInstances = async () => {
       try {
         const token = localStorage.getItem("token");
         if (!token) {
@@ -16,37 +19,90 @@ const BotTransactions = () => {
           return;
         }
 
-        // Pobierz dane o pozycjach z API
-        const response = await fetch("/api/v1/signals/positions/history", {
+        const response = await fetch("/api/v1/instances/active", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
 
         if (!response.ok) {
-          throw new Error("Nie udało się pobrać danych transakcji");
+          throw new Error("Nie udało się pobrać aktywnych instancji");
         }
 
         const data = await response.json();
+        if (data.instances && data.instances.length > 0) {
+          setActiveInstances(data.instances);
 
-        // Sprawdź, czy dane są w odpowiednim formacie
-        if (!data || !Array.isArray(data)) {
-          console.error("Nieprawidłowy format danych:", data);
-          setTransactions([]);
+          // Ustaw pierwszą instancję jako domyślną
+          if (!selectedInstance) {
+            setSelectedInstance(data.instances[0]);
+
+            // Od razu pobierz transakcje dla tej instancji
+            fetchTransactionsForInstance(data.instances[0]);
+          }
         } else {
-          setTransactions(data);
+          setActiveInstances([]);
+          setIsLoading(false);
         }
-
-        setIsLoading(false);
       } catch (err) {
-        console.error("Błąd:", err);
         setError(err.message);
         setIsLoading(false);
       }
     };
 
-    fetchTransactions();
-  }, []);
+    fetchActiveInstances();
+  }, [selectedInstance]);
+
+  // Funkcja do pobierania transakcji dla konkretnej instancji
+  const fetchTransactionsForInstance = async (instance) => {
+    try {
+      setIsLoading(true);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setError("Brak autoryzacji");
+        setIsLoading(false);
+        return;
+      }
+
+      // Pobierz ID instancji
+      const instanceId = instance.instanceId || instance._id;
+
+      // Pobierz dane o pozycjach z API
+      const response = await fetch(`/api/v1/signals/positions/history`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Nie udało się pobrać danych transakcji");
+      }
+
+      const data = await response.json();
+
+      // Sprawdź, czy dane są w odpowiednim formacie
+      if (!data || !Array.isArray(data)) {
+        setTransactions([]);
+      } else {
+        // Filtruj transakcje tylko dla wybranej instancji
+        const filteredTransactions = data.filter(
+          (tx) => tx.instanceId === instanceId
+        );
+        setTransactions(filteredTransactions);
+      }
+
+      setIsLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setIsLoading(false);
+    }
+  };
+
+  // Obsługa wyboru instancji
+  const handleInstanceSelect = (instance) => {
+    setSelectedInstance(instance);
+    fetchTransactionsForInstance(instance);
+  };
 
   // Formatowanie daty i czasu
   const formatDateTime = (timestamp) => {
@@ -73,9 +129,9 @@ const BotTransactions = () => {
     return (
       <div className="bot-transactions card">
         <div className="card-header">
-          <h2>Recent Bot Transactions</h2>
+          <h2>Transakcje</h2>
         </div>
-        <div className="loading-indicator">Loading...</div>
+        <div className="loading-indicator">Ładowanie transakcji...</div>
       </div>
     );
   }
@@ -84,7 +140,7 @@ const BotTransactions = () => {
     return (
       <div className="bot-transactions card">
         <div className="card-header">
-          <h2>Recent Bot Transactions</h2>
+          <h2>Transakcje</h2>
         </div>
         <div className="error-message">{error}</div>
       </div>
@@ -94,28 +150,60 @@ const BotTransactions = () => {
   return (
     <div className="bot-transactions card">
       <div className="card-header">
-        <h2>Recent Bot Transactions</h2>
-        <button className="view-all-btn">View All</button>
+        <h2>Transakcje</h2>
+
+        {/* Dodany selektor instancji */}
+        {activeInstances.length > 0 && (
+          <div className="instance-selector">
+            <select
+              value={
+                selectedInstance
+                  ? selectedInstance.instanceId || selectedInstance._id
+                  : ""
+              }
+              onChange={(e) => {
+                const selectedId = e.target.value;
+                const instance = activeInstances.find(
+                  (inst) => (inst.instanceId || inst._id) === selectedId
+                );
+                if (instance) {
+                  handleInstanceSelect(instance);
+                }
+              }}
+            >
+              {activeInstances.map((instance) => (
+                <option
+                  key={instance.instanceId || instance._id}
+                  value={instance.instanceId || instance._id}
+                >
+                  {instance.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="transactions-table">
         <div className="table-container">
           <div className="table-fixed-width">
             <div className="table-header">
-              <span>Type</span>
-              <span>Asset</span>
-              <span>Position Size</span>
-              <span>Entry Price</span>
-              <span>Exit Price</span>
-              <span>Open Time</span>
-              <span>Close Time</span>
-              <span>Profit</span>
+              <span>Typ</span>
+              <span>Symbol</span>
+              <span>Wielkość</span>
+              <span>Cena wejścia</span>
+              <span>Cena wyjścia</span>
+              <span>Czas otwarcia</span>
+              <span>Czas zamknięcia</span>
+              <span>Zysk</span>
               <span>Status</span>
             </div>
 
             <div className="transactions-list">
               {transactions.length === 0 ? (
-                <div className="no-transactions">No transactions found</div>
+                <div className="no-transactions">
+                  Brak transakcji dla wybranej instancji
+                </div>
               ) : (
                 transactions.map((tx) => {
                   const entryTime = formatDateTime(tx.entryTime);
@@ -133,9 +221,13 @@ const BotTransactions = () => {
                           tx.status === "closed" ? "sell" : "buy"
                         }`}
                       >
-                        {tx.status === "closed" ? "CLOSE" : "OPEN"}
+                        {tx.status === "closed" ? "ZAMKNIĘTA" : "OTWARTA"}
                       </span>
-                      <span className="tx-pair">BTC/USDT</span>
+                      <span className="tx-pair">
+                        {selectedInstance
+                          ? selectedInstance.symbol
+                          : "BTC/USDT"}
+                      </span>
                       <span className="tx-amount">
                         {formatNumber(tx.capitalAmount)} USDT
                       </span>
@@ -171,7 +263,15 @@ const BotTransactions = () => {
                           : "-"}
                       </span>
                       <span className={`tx-status ${tx.status}`}>
-                        {tx.status ? tx.status.toUpperCase() : "PENDING"}
+                        {tx.status === "active"
+                          ? "AKTYWNA"
+                          : tx.status === "closed"
+                          ? "ZAMKNIĘTA"
+                          : tx.status === "pending"
+                          ? "OCZEKUJĄCA"
+                          : tx.status
+                          ? tx.status.toUpperCase()
+                          : "OCZEKUJĄCA"}
                       </span>
                     </div>
                   );

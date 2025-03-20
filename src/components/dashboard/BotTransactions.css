@@ -1,87 +1,107 @@
 /* src/components/dashboard/BotTransactions.css */
 .bot-transactions {
-  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.view-all-btn {
-  padding: 0.4rem 0.8rem;
-  background: none;
-  border: 1px solid var(--gold);
-  color: var(--gold);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
+.card-header {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
 }
 
-.view-all-btn:hover {
-  background-color: rgba(255, 215, 0, 0.1);
+@media (min-width: 480px) {
+  .card-header {
+    flex-direction: row;
+    align-items: center;
+  }
 }
 
 .transactions-table {
+  width: 100%;
+  overflow: hidden;
+}
+
+.table-container {
+  width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-fixed-width {
+  min-width: 800px; /* Ustaw minimalną szerokość dla lepszej responsywności na mobile */
 }
 
 .table-header {
   display: grid;
-  grid-template-columns: 0.8fr 0.8fr 1fr 1fr 1fr 1.2fr 1.2fr 1fr 0.8fr;
+  grid-template-columns: 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 1fr 1fr 0.8fr 0.8fr;
   padding: 0.8rem 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 0.8rem;
-  color: var(--gray-light);
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--white);
 }
 
 .transactions-list {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
   max-height: 300px;
   overflow-y: auto;
 }
 
 .transaction-row {
   display: grid;
-  grid-template-columns: 0.8fr 0.8fr 1fr 1fr 1fr 1.2fr 1.2fr 1fr 0.8fr;
-  padding: 0.8rem 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: 0.9rem;
-  transition: background-color 0.3s ease;
+  grid-template-columns: 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 1fr 1fr 0.8fr 0.8fr;
+  padding: 0.6rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .transaction-row:hover {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 .tx-type {
-  text-transform: uppercase;
-  font-weight: 600;
-  font-size: 0.8rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+  width: fit-content;
 }
 
 .tx-type.buy {
+  background-color: rgba(76, 175, 80, 0.2);
   color: var(--green);
 }
 
 .tx-type.sell {
+  background-color: rgba(244, 67, 54, 0.2);
   color: var(--red);
 }
 
-.tx-pair {
-  font-weight: 600;
-}
-
+.tx-pair,
 .tx-amount,
 .tx-price {
-  color: var(--white);
+  font-weight: 500;
 }
 
 .tx-time {
-  color: var(--gray-light);
-  font-size: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  font-size: 0.75rem;
 }
 
 .tx-profit {
-  color: var(--white);
   font-weight: 600;
 }
 
@@ -94,60 +114,69 @@
 }
 
 .tx-status {
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 0.4rem;
   border-radius: 4px;
   font-size: 0.75rem;
-  display: inline-block;
+  font-weight: 500;
   text-align: center;
+  width: fit-content;
 }
 
-.tx-status.active {
-  background-color: rgba(0, 200, 83, 0.1);
-  color: var(--green);
+.tx-status.active,
+.tx-status.open {
+  background-color: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
 }
 
 .tx-status.closed {
-  background-color: rgba(255, 61, 87, 0.1);
-  color: var(--red);
+  background-color: rgba(76, 175, 80, 0.2);
+  color: var(--green);
 }
 
 .tx-status.pending {
-  background-color: rgba(255, 215, 0, 0.1);
-  color: var(--gold);
+  background-color: rgba(255, 152, 0, 0.2);
+  color: #ff9800;
+}
+
+.loading-indicator,
+.error-message {
+  padding: 2rem;
+  text-align: center;
+  width: 100%;
 }
 
 .loading-indicator {
-  text-align: center;
-  padding: 2rem;
   color: var(--gray-light);
 }
 
 .error-message {
-  text-align: center;
-  padding: 2rem;
   color: var(--red);
 }
 
 .no-transactions {
-  text-align: center;
   padding: 2rem;
+  text-align: center;
   color: var(--gray-light);
+  width: 100%;
 }
 
-@media (max-width: 1200px) {
-  .transactions-table {
-    overflow-x: auto;
-  }
-
-  .table-header,
-  .transaction-row {
-    width: 900px;
-    min-width: 900px;
-  }
+/* Nowy selektor instancji */
+.instance-selector {
+  display: flex;
+  align-items: center;
 }
 
-@media (min-width: 1200px) {
-  .transactions-list {
-    max-height: 400px;
-  }
+.instance-selector select {
+  padding: 0.5rem;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--white);
+  font-size: 0.9rem;
+  min-width: 150px;
+}
+
+.instance-selector select:focus {
+  outline: none;
+  border-color: var(--purple);
 }

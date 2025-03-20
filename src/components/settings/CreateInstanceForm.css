@@ -1,0 +1,169 @@
+/* src/components/settings/CreateInstanceForm.css */
+.create-instance-container {
+  width: 100%;
+}
+
+.form-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  scrollbar-width: thin;
+  flex-wrap: nowrap;
+  margin-bottom: 1.2rem;
+}
+
+.tab {
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--gray-light);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.tab.active {
+  background-color: var(--purple);
+  border-color: var(--purple);
+  color: var(--white);
+}
+
+.error-message {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: var(--red);
+  padding: 0.8rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid var(--red);
+}
+
+.success-message {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: var(--green);
+  padding: 0.8rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid var(--green);
+}
+
+.form-section {
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.4rem;
+  color: var(--white);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select {
+  width: 100%;
+  padding: 0.8rem;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--white);
+  font-size: 0.9rem;
+}
+
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--purple);
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkbox-group input[type="checkbox"] {
+  margin: 0;
+  width: 18px;
+  height: 18px;
+}
+
+.checkbox-group label {
+  margin-bottom: 0;
+}
+
+.section-description {
+  font-size: 0.85rem;
+  color: var(--gray-light);
+  margin-top: 1rem;
+  line-height: 1.4;
+}
+
+/* Nowy styl dla opisu pola */
+.field-description {
+  font-size: 0.8rem;
+  color: var(--gray-light);
+  margin-top: 0.3rem;
+  font-style: italic;
+}
+
+.form-actions {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.submit-button {
+  background-color: var(--purple);
+  color: var(--white);
+  border: none;
+  padding: 0.8rem 2rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.submit-button:hover {
+  background-color: #584fb8;
+}
+
+.submit-button:disabled {
+  background-color: #4a4870;
+  cursor: not-allowed;
+}
+
+@media (min-width: 768px) {
+  .form-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .section-description {
+    grid-column: span 2;
+  }
+
+  .form-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (min-width: 992px) {
+  .form-section {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .section-description {
+    grid-column: span 3;
+  }
+}

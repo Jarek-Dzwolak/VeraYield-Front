@@ -1,31 +1,68 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./ActionPanel.css";
 
 const ActionPanel = () => {
   const [isDeadManSwitchActive, setDeadManSwitchActive] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  // Wykrywanie rozmiaru ekranu
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const toggleDeadManSwitch = () => {
     setDeadManSwitchActive(!isDeadManSwitchActive);
-    // Tu faktycznie nic się nie robi, jak w założeniu
-    console.log("Dead Man Switch toggled:", !isDeadManSwitchActive);
   };
 
   return (
-    <div className="action-panel">
+    <div>
       <div className="quick-actions">
+        <div></div>
         <button className="action-btn start-bot">
           <span className="btn-icon">▶</span>
-          Start Bot
+          <div className="btn-text">
+            {isMobile ? (
+              "Start Bot"
+            ) : (
+              <>
+                <span>Start</span>
+                <span>Bot</span>
+              </>
+            )}
+          </div>
         </button>
 
         <button className="action-btn pause-bot">
           <span className="btn-icon">⏸</span>
-          Pause Bot
+          <div className="btn-text">
+            {isMobile ? (
+              "Pause Bot"
+            ) : (
+              <>
+                <span>Pause</span>
+                <span>Bot</span>
+              </>
+            )}
+          </div>
         </button>
 
         <button className="action-btn settings">
           <span className="btn-icon">⚙</span>
-          Bot Settings
+          <div className="btn-text">
+            {isMobile ? (
+              "Bot Settings"
+            ) : (
+              <>
+                <span>Bot</span>
+                <span>Settings</span>
+              </>
+            )}
+          </div>
         </button>
 
         <button
@@ -35,7 +72,17 @@ const ActionPanel = () => {
           onClick={toggleDeadManSwitch}
         >
           <span className="btn-icon">⚠</span>
-          Dead Man Switch
+          <div className="btn-text">
+            {isMobile ? (
+              "Dead Man Switch"
+            ) : (
+              <>
+                <span>Dead</span>
+                <span>Man</span>
+                <span>Switch</span>
+              </>
+            )}
+          </div>
         </button>
       </div>
 

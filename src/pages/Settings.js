@@ -1,12 +1,22 @@
 import React from "react";
 import logo from "../assets/img/Logo.jpeg";
+import CreateInstanceForm from "../components/settings/CreateInstanceForm";
+import "./Settings.css";
 
 const Settings = () => {
   return (
-    <div className="simple-page">
-      <img src={logo} alt="VeraYield" />
-      <h1>Settings</h1>
-      <p>Settings section is coming soon. Stay tuned for updates!</p>
+    <div className="dashboard-page">
+      <div className="dashboard-header">
+        <img src={logo} alt="VeraYield" className="logo" />
+        <h1>Ustawienia</h1>
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h2>Utwórz Instancję Bota</h2>
+        </div>
+        <CreateInstanceForm />
+      </div>
     </div>
   );
 };
