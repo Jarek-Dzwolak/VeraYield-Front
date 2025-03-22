@@ -70,159 +70,110 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     const fetchCandlesWithPagination = async (
       symbol,
       timeframe,
-      startTime,
       expectedCandles
     ) => {
-      let allCandles = [];
-      let currentStartTime = startTime;
-      const limit = 1000; // Maksymalna liczba świec na zapytanie
-      let retryCount = 0;
-      const maxRetries = 3;
+      // Określ aktualny zakres dat
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - 14);
 
-      try {
+      const startTime = startDate.getTime();
+      const endTime = endDate.getTime();
+
+      console.log(
+        `Pobieranie danych od ${startDate.toISOString()} do ${endDate.toISOString()}`
+      );
+
+      // Podziel cały zakres na mniejsze fragmenty (1 dzień każdy)
+      const allCandles = [];
+      const daysToFetch = 14;
+
+      // Pobieranie danych dzień po dniu
+      for (let i = 0; i < daysToFetch; i++) {
+        const dayEndDate = new Date(endDate);
+        dayEndDate.setDate(endDate.getDate() - i);
+        dayEndDate.setHours(23, 59, 59, 999);
+
+        const dayStartDate = new Date(dayEndDate);
+        dayStartDate.setHours(0, 0, 0, 0);
+
+        const dayStartTime = dayStartDate.getTime();
+        const dayEndTime = dayEndDate.getTime();
+
         console.log(
-          `Rozpoczynam pobieranie danych ${symbol} (${timeframe}) od ${new Date(
-            startTime
-          ).toISOString()}`
+          `Pobieranie dnia ${i + 1}/14: ${
+            dayStartDate.toISOString().split("T")[0]
+          }`
         );
 
-        while (allCandles.length < expectedCandles) {
-          try {
-            console.log(
-              `Pobieranie paczki danych dla ${symbol} (${timeframe}) od ${new Date(
-                currentStartTime
-              ).toISOString()}`
-            );
+        const url = `/api/v1/market/klines/${symbol}/${timeframe}?startTime=${dayStartTime}&endTime=${dayEndTime}&limit=1500`;
 
-            const url = `/api/v1/market/klines/${symbol}/${timeframe}?startTime=${currentStartTime}&limit=${limit}`;
-            const token = localStorage.getItem("token");
-            const headers = {
-              Authorization: token ? `Bearer ${token}` : undefined,
-              "Content-Type": "application/json",
-            };
+        const token = localStorage.getItem("token");
+        const headers = {
+          Authorization: token ? `Bearer ${token}` : undefined,
+          "Content-Type": "application/json",
+        };
 
-            const response = await fetch(url, { headers });
+        try {
+          const response = await fetch(url, { headers });
 
-            if (!response.ok) {
-              throw new Error(
-                `Nie udało się pobrać danych (${response.status})`
-              );
-            }
-
-            const responseData = await response.json();
-
-            // Loguj surową odpowiedź aby zobaczyć jej format
-            console.log("Raw API response:", responseData);
-
-            // Wyodrębnij tablicę świec z odpowiedzi
-            let candles;
-            if (Array.isArray(responseData)) {
-              candles = responseData;
-            } else if (
-              responseData.candles &&
-              Array.isArray(responseData.candles)
-            ) {
-              candles = responseData.candles;
-            } else {
-              console.error("Unexpected response format:", responseData);
-              throw new Error("Nieoczekiwany format danych z API");
-            }
-
-            if (!candles || !candles.length) {
-              // Jeśli nie ma więcej danych, przerwij pętlę
-              console.log(
-                `Nie znaleziono więcej danych dla ${symbol} (${timeframe})`
-              );
-              break;
-            }
-
-            allCandles = [...allCandles, ...candles];
-            console.log(
-              `Pobrano łącznie ${allCandles.length}/${expectedCandles} historycznych świec dla ${symbol} (${timeframe})`
-            );
-
-            // Reset licznika prób
-            retryCount = 0;
-
-            // Aktualizuj postęp ładowania
-            setLoadingProgress((prev) => ({
-              ...prev,
-              loaded: prev.loaded + candles.length,
-            }));
-
-            // Ustaw startTime na ostatnią świecę + 1ms
-            const lastCandle = candles[candles.length - 1];
-
-            // Bardziej solidna logika ustalania czasu następnego zapytania
-            if (lastCandle.closeTime) {
-              currentStartTime = new Date(lastCandle.closeTime).getTime() + 1;
-            } else if (lastCandle.openTime) {
-              const timeframeMs = getTimeframeInMs(timeframe);
-              currentStartTime =
-                new Date(lastCandle.openTime).getTime() + timeframeMs + 1;
-            } else {
-              console.warn(
-                "Nie można ustalić czasu dla następnego zapytania:",
-                lastCandle
-              );
-              // Zrób przybliżenie - przeskocz o 1000 świec * długość interwału
-              const timeframeMs = getTimeframeInMs(timeframe);
-              currentStartTime = currentStartTime + timeframeMs * limit;
-            }
-
-            // Jeśli otrzymaliśmy mniej niż limit, oznacza to, że nie ma więcej danych
-            if (candles.length < limit) {
-              console.log(
-                `Otrzymano ${candles.length} < ${limit} świec, kończę pobieranie dla ${timeframe}`
-              );
-              break;
-            }
-
-            // Dajmy serwerowi chwilę odpocząć, aby uniknąć limitów API - dłuższa przerwa
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            // Jeśli mamy wystarczająco dużo danych, przerwij pętlę
-            if (allCandles.length >= expectedCandles) {
-              // Obetnij do oczekiwanej liczby świec
-              allCandles = allCandles.slice(0, expectedCandles);
-              break;
-            }
-          } catch (error) {
-            retryCount++;
-            console.error(`Błąd przy próbie ${retryCount}:`, error);
-
-            if (retryCount > maxRetries) {
-              throw new Error(
-                `Przekroczono liczbę prób pobierania danych: ${error.message}`
-              );
-            }
-
-            // Poczekaj przed ponowną próbą - progresywne wydłużanie czasu oczekiwania
-            const waitTime = 1000 * Math.pow(2, retryCount);
-            console.log(`Oczekiwanie ${waitTime}ms przed ponowną próbą...`);
-            await new Promise((resolve) => setTimeout(resolve, waitTime));
+          if (!response.ok) {
+            console.warn(`Błąd pobierania dnia ${i + 1}: ${response.status}`);
+            continue; // Przejdź do następnego dnia
           }
-        }
 
-        console.log(
-          `Zakończono pobieranie dla ${symbol} (${timeframe}), łącznie pobrano ${allCandles.length}/${expectedCandles} świec`
-        );
+          const responseData = await response.json();
 
-        // Nawet jeśli nie pobraliśmy wszystkich oczekiwanych świec, ale mamy jakieś dane, uznaj to za sukces
-        if (allCandles.length > 0) {
-          return allCandles;
-        } else {
-          throw new Error(
-            `Nie udało się pobrać żadnych danych dla ${symbol} (${timeframe})`
-          );
+          // Wyodrębnij świece z odpowiedzi
+          let candles;
+          if (Array.isArray(responseData)) {
+            candles = responseData;
+          } else if (
+            responseData.candles &&
+            Array.isArray(responseData.candles)
+          ) {
+            candles = responseData.candles;
+          } else {
+            console.warn(`Nieoczekiwany format odpowiedzi dla dnia ${i + 1}`);
+            continue;
+          }
+
+          console.log(`Pobrano ${candles.length} świec dla dnia ${i + 1}`);
+          allCandles.push(...candles);
+
+          // Aktualizuj postęp ładowania
+          setLoadingProgress((prev) => ({
+            ...prev,
+            loaded: prev.loaded + candles.length,
+          }));
+
+          // Krótka przerwa między zapytaniami
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        } catch (error) {
+          console.error(`Błąd podczas pobierania dnia ${i + 1}:`, error);
         }
-      } catch (error) {
-        console.error(
-          `Błąd podczas pobierania danych ${symbol} (${timeframe}):`,
-          error
-        );
-        throw error;
       }
+
+      console.log(
+        `Zakończono pobieranie. Łącznie pobrano ${allCandles.length} świec`
+      );
+
+      // Sprawdź zakres dat
+      if (allCandles.length > 0) {
+        const times = allCandles.map((candle) => candle.openTime);
+        const oldestTime = Math.min(...times);
+        const newestTime = Math.max(...times);
+        console.log(
+          `Zakres dat w pobranych danych: od ${new Date(
+            oldestTime
+          ).toISOString()} do ${new Date(newestTime).toISOString()}`
+        );
+        console.log(
+          `Liczba dni: ${(newestTime - oldestTime) / (1000 * 60 * 60 * 24)}`
+        );
+      }
+
+      return allCandles;
     };
 
     const fetchAllData = async () => {
@@ -429,7 +380,17 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
           hurstChannelData,
           emaLineData
         );
-
+        const combinedTimes = combined.map((point) => point.time);
+        const combinedMinTime = new Date(Math.min(...combinedTimes));
+        const combinedMaxTime = new Date(Math.max(...combinedTimes));
+        console.log(
+          `Zakres dat przed optymalizacją: ${combinedMinTime.toISOString()} do ${combinedMaxTime.toISOString()}`
+        );
+        console.log(
+          `Liczba dni przed optymalizacją: ${
+            (combinedMaxTime - combinedMinTime) / (1000 * 60 * 60 * 24)
+          }`
+        );
         setCombinedData(combined);
         console.log(
           "Data combination complete, chart data ready with",
@@ -903,50 +864,71 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   const optimizeDataForChart = (data, maxPoints = 2000) => {
     if (data.length <= maxPoints) return data;
 
-    // Określ co ile punktów powinniśmy wybierać dane
-    const step = Math.ceil(data.length / maxPoints);
+    // Określ zakres czasu
+    const times = data.map((point) => point.time);
+    const minTime = Math.min(...times);
+    const maxTime = Math.max(...times);
+    const timeRange = maxTime - minTime;
+
+    // Podziel zakres czasu na równe przedziały
+    const bucketCount = maxPoints;
+    const bucketSize = timeRange / bucketCount;
+
+    // Utwórz tablicę kubełków (buckets)
+    const buckets = new Array(bucketCount).fill().map(() => []);
+
+    // Przypisz każdy punkt do odpowiedniego kubełka
+    data.forEach((point) => {
+      const bucketIndex = Math.min(
+        bucketCount - 1,
+        Math.floor((point.time - minTime) / bucketSize)
+      );
+      buckets[bucketIndex].push(point);
+    });
+
+    // Wybierz jeden punkt z każdego niepustego kubełka
     const optimized = [];
+    buckets.forEach((bucket) => {
+      if (bucket.length > 0) {
+        // Wybierz środkowy punkt z kubełka lub punkt z ważnymi wartościami
+        const importantPoints = bucket.filter(
+          (p) =>
+            p.hurstUpper !== undefined ||
+            p.hurstLower !== undefined ||
+            p.ema !== undefined
+        );
 
-    // Wybierz co step-ty punkt, ale zachowaj punkty kluczowe
-    let lastAddedTime = -1;
-    for (let i = 0; i < data.length; i += step) {
-      // Zawsze dodaj punkt z regularnego próbkowania
-      if (lastAddedTime !== data[i].time) {
-        optimized.push(data[i]);
-        lastAddedTime = data[i].time;
-      }
-
-      // Sprawdź punkty pomiędzy i dodaj te, które mają hurstUpper, hurstLower lub ema
-      // aby zachować dokładność tych linii
-      for (let j = i + 1; j < i + step && j < data.length; j++) {
-        // Dodaj punkt tylko jeśli ma specjalne wartości i nie jest zbyt blisko ostatnio dodanego
-        const hasSpecialValues =
-          data[j].hurstUpper !== undefined ||
-          data[j].hurstLower !== undefined ||
-          data[j].ema !== undefined;
-
-        const timeGap = Math.abs(data[j].time - lastAddedTime);
-        const minTimeGap = 60000; // Minimum 1 minuta między punktami
-
-        if (hasSpecialValues && timeGap >= minTimeGap) {
-          optimized.push(data[j]);
-          lastAddedTime = data[j].time;
+        // Jeśli są punkty z ważnymi wartościami, wybierz pierwszy taki punkt
+        if (importantPoints.length > 0) {
+          optimized.push(importantPoints[0]);
+        } else {
+          // W przeciwnym razie wybierz środkowy punkt z kubełka
+          optimized.push(bucket[Math.floor(bucket.length / 2)]);
         }
       }
-    }
+    });
 
-    // Sortuj dane według czasu, aby zapewnić poprawne renderowanie
+    // Sortuj dane według czasu
     optimized.sort((a, b) => a.time - b.time);
 
     console.log(
       `Optymalizacja: zredukowano ${data.length} punktów do ${optimized.length}`
     );
+
     return optimized;
   };
 
   console.log("Rendering full chart with data points:", combinedData.length);
   const optimizedData = optimizeDataForChart(combinedData);
   console.log("Optimized to data points:", optimizedData.length);
+
+  const times = optimizedData.map((point) => point.time);
+  const minTime = new Date(Math.min(...times));
+  const maxTime = new Date(Math.max(...times));
+  console.log(
+    `Zakres dat po optymalizacji: ${minTime.toISOString()} do ${maxTime.toISOString()}`
+  );
+  console.log(`Liczba dni: ${(maxTime - minTime) / (1000 * 60 * 60 * 24)}`);
 
   return (
     <div className="technical-analysis-chart">
@@ -998,10 +980,10 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
                 const date = new Date(time);
                 return `${date.getDate()}/${date.getMonth() + 1}`;
               }}
-              minTickGap={50}
+              minTickGap={20} // Zmniejszone z 50 na 20
               scale="time"
               type="number"
-              domain={["dataMin", "dataMax"]}
+              domain={["auto", "auto"]} // Zmienione z ["dataMin", "dataMax"] na ["auto", "auto"]
             />
             <YAxis
               domain={["auto", "auto"]}
