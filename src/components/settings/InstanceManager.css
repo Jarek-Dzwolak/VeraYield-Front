@@ -1,0 +1,153 @@
+/* src/components/settings/InstanceManager.css */
+
+.instance-manager-container {
+  width: 100%;
+}
+
+.loading-message {
+  text-align: center;
+  padding: 20px;
+  color: var(--gray-light);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 30px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--gray-light);
+  margin: 20px 0;
+}
+
+.instances-table-container {
+  overflow-x: auto;
+  margin-top: 20px;
+}
+
+.instances-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.instances-table th,
+.instances-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.instances-table th {
+  font-weight: 600;
+  color: var(--white);
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.instances-table tr:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.status-badge.active {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: var(--green);
+}
+
+.status-badge.inactive {
+  background-color: rgba(158, 158, 158, 0.2);
+  color: var(--gray-light);
+}
+
+.actions-cell {
+  display: flex;
+  gap: 8px;
+}
+
+.action-button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background-color 0.2s;
+}
+
+.start-button {
+  background-color: var(--green);
+  color: var(--white);
+}
+
+.stop-button {
+  background-color: var(--yellow);
+  color: var(--dark);
+}
+
+.delete-button {
+  background-color: var(--red);
+  color: var(--white);
+}
+
+.action-button:hover {
+  opacity: 0.9;
+}
+
+.action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsywność dla małych ekranów */
+@media (max-width: 768px) {
+  .instances-table {
+    font-size: 0.85rem;
+  }
+
+  .instances-table th,
+  .instances-table td {
+    padding: 8px 10px;
+  }
+
+  .actions-cell {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .action-button {
+    width: 100%;
+    font-size: 0.8rem;
+    padding: 5px 8px;
+  }
+}
+
+/* Dodatkowe animacje */
+.status-badge,
+.action-button {
+  transition: all 0.3s ease;
+}
+
+.action-button:active {
+  transform: scale(0.95);
+}
+
+/* Niestandardowe scrollbary dla tabeli */
+.instances-table-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.instances-table-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.instances-table-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}

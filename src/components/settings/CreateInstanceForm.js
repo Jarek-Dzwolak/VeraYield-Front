@@ -13,13 +13,16 @@ const CreateInstanceForm = () => {
     symbol: "BTCUSDT",
     testMode: true, // Dodajemy to pole, aby aktywować tryb testowy
     strategy: {
+      type: "hurst",
       parameters: {
         hurst: {
+          interval: "15m",
           periods: 25,
           upperDeviationFactor: 2.0,
           lowerDeviationFactor: 2.0,
         },
         ema: {
+          interval: "1h",
           periods: 30,
         },
         signals: {
@@ -31,10 +34,6 @@ const CreateInstanceForm = () => {
           secondEntry: 0.25,
           thirdEntry: 0.5,
           maxEntries: 3,
-        },
-        intervals: {
-          hurst: "15m",
-          ema: "1h",
         },
       },
     },
@@ -73,7 +72,6 @@ const CreateInstanceForm = () => {
       }
     } else {
       // Dla współczynników odchylenia, akceptujemy zarówno kropkę jak i przecinek
-      // Nie konwertujemy na liczbę w trakcie edycji, aby nie utrudniać wprowadzania
       setNewInstance((prev) => ({
         ...prev,
         strategy: {
@@ -169,19 +167,35 @@ const CreateInstanceForm = () => {
   const handleIntervalsChange = (e) => {
     const { name, value } = e.target;
 
-    setNewInstance((prev) => ({
-      ...prev,
-      strategy: {
-        ...prev.strategy,
-        parameters: {
-          ...prev.strategy.parameters,
-          intervals: {
-            ...prev.strategy.parameters.intervals,
-            [name]: value,
+    if (name === "hurstInterval") {
+      setNewInstance((prev) => ({
+        ...prev,
+        strategy: {
+          ...prev.strategy,
+          parameters: {
+            ...prev.strategy.parameters,
+            hurst: {
+              ...prev.strategy.parameters.hurst,
+              interval: value,
+            },
           },
         },
-      },
-    }));
+      }));
+    } else if (name === "emaInterval") {
+      setNewInstance((prev) => ({
+        ...prev,
+        strategy: {
+          ...prev.strategy,
+          parameters: {
+            ...prev.strategy.parameters,
+            ema: {
+              ...prev.strategy.parameters.ema,
+              interval: value,
+            },
+          },
+        },
+      }));
+    }
   };
 
   // Funkcja do tworzenia nowej instancji
@@ -230,6 +244,7 @@ const CreateInstanceForm = () => {
       }
 
       // Logowanie danych przed wysłaniem dla celów debugowania
+      // Logowanie danych przed wysłaniem dla celów debugowania
       console.log(
         "Wysyłanie danych instancji:",
         JSON.stringify(dataToSend, null, 2)
@@ -262,28 +277,27 @@ const CreateInstanceForm = () => {
         symbol: "BTCUSDT",
         testMode: true,
         strategy: {
+          type: "hurst",
           parameters: {
             hurst: {
+              interval: "15m",
               periods: 25,
               upperDeviationFactor: 2.0,
               lowerDeviationFactor: 2.0,
             },
             ema: {
+              interval: "1h",
               periods: 30,
             },
             signals: {
               checkEMATrend: true,
-              minEntryTimeGap: 7200000,
+              minEntryTimeGap: 7200000, // 2 godziny w milisekundach
             },
             capitalAllocation: {
               firstEntry: 0.1,
               secondEntry: 0.25,
               thirdEntry: 0.5,
               maxEntries: 3,
-            },
-            intervals: {
-              hurst: "15m",
-              ema: "1h",
             },
           },
         },
@@ -588,8 +602,8 @@ const CreateInstanceForm = () => {
               <label htmlFor="hurstInterval">Interwał kanału Hursta:</label>
               <select
                 id="hurstInterval"
-                name="hurst"
-                value={newInstance.strategy.parameters.intervals.hurst}
+                name="hurstInterval"
+                value={newInstance.strategy.parameters.hurst.interval}
                 onChange={handleIntervalsChange}
               >
                 <option value="5m">5 minut</option>
@@ -603,8 +617,8 @@ const CreateInstanceForm = () => {
               <label htmlFor="emaInterval">Interwał EMA:</label>
               <select
                 id="emaInterval"
-                name="ema"
-                value={newInstance.strategy.parameters.intervals.ema}
+                name="emaInterval"
+                value={newInstance.strategy.parameters.ema.interval}
                 onChange={handleIntervalsChange}
               >
                 <option value="15m">15 minut</option>

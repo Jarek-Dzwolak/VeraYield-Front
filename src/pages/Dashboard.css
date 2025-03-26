@@ -41,8 +41,46 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  background-color: var(--text-secondary);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+/* Nowe style dla statusu połączenia */
+.status-dot.connected {
   background-color: var(--green-color);
-  box-shadow: 0 0 4px var(--green-color);
+  box-shadow: 0 0 6px var(--green-color);
+  animation: pulse 2s infinite;
+}
+
+.status-dot.disconnected {
+  background-color: var(--red-color);
+  box-shadow: 0 0 6px var(--red-color);
+  animation: pulse-fast 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 4px var(--green-color);
+  }
+  50% {
+    box-shadow: 0 0 8px var(--green-color);
+  }
+  100% {
+    box-shadow: 0 0 4px var(--green-color);
+  }
+}
+
+@keyframes pulse-fast {
+  0% {
+    box-shadow: 0 0 4px var(--red-color);
+  }
+  50% {
+    box-shadow: 0 0 8px var(--red-color);
+  }
+  100% {
+    box-shadow: 0 0 4px var(--red-color);
+  }
 }
 
 .status-text {
@@ -113,6 +151,24 @@
   font-size: 2rem;
   font-weight: bold;
   color: var(--gold-color);
+  transition: color 0.3s ease;
+}
+
+/* Animacja dla zmiany ceny */
+.price-update-animation {
+  animation: price-change 1s ease;
+}
+
+@keyframes price-change {
+  0% {
+    color: var(--gold-color);
+  }
+  50% {
+    color: var(--accent-color);
+  }
+  100% {
+    color: var(--gold-color);
+  }
 }
 
 .last-updated {
@@ -193,6 +249,30 @@
   padding: 0.5rem;
   font-size: 0.8rem;
   border-bottom: 1px solid var(--border-color);
+}
+
+/* Stany dla WebSocket - wskaźnik łączenia */
+.reconnecting {
+  display: inline-block;
+  position: relative;
+  color: var(--orange-color);
+}
+
+.reconnecting:after {
+  content: "";
+  animation: ellipsis 1.5s infinite;
+}
+
+@keyframes ellipsis {
+  0% {
+    content: ".";
+  }
+  33% {
+    content: "..";
+  }
+  66% {
+    content: "...";
+  }
 }
 
 /* Media queries dla różnych rozmiarów ekranów */

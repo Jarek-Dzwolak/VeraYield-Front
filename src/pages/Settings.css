@@ -95,3 +95,53 @@ h2 {
     padding: 2rem;
   }
 }
+/* Dodaj te style do Settings.css */
+
+.settings-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.2rem;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 0.5rem;
+}
+
+.settings-tab {
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--gray-light);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+.settings-tab.active {
+  background-color: var(--purple);
+  border-color: var(--purple);
+  color: var(--white);
+}
+
+.settings-tab:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Styl dla pustego stanu, gdy nie ma instancji */
+.empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin: 1rem 0;
+  color: var(--gray-light);
+}
+
+/* Styl dla komunikatu ładowania */
+.loading-message {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--gray-light);
+  font-style: italic;
+}

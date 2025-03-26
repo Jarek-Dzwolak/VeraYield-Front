@@ -1,1096 +1,1089 @@
-// src/components/dashboard/TechnicalAnalysisChart.js
-import React, { useState, useEffect } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceLine,
-  ReferenceDot,
-} from "recharts";
+import React, { useState, useEffect, useRef } from "react";
 import "./TechnicalAnalysisChart.css";
 
 const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
-  console.log("TechnicalAnalysisChart rendering with props:", {
-    instanceId: instance?._id,
-    symbol: instance?.symbol,
-    isActive,
-  });
-
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [loadingProgress, setLoadingProgress] = useState({
-    total: 0,
-    loaded: 0,
-  });
+  const [loading, setLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState("");
+  const [chartData, setChartData] = useState(null);
+  const chartContainerRef = useRef(null);
+  const chartRef = useRef(null);
+  const [transactions, setTransactions] = useState([]);
 
-  // Osobne stany dla każdego timeframe'u
-  const [minuteData, setMinuteData] = useState([]); // Dane 1-minutowe dla dokładnej linii ceny
-  const [hurstData, setHurstData] = useState([]); // Dane 15-minutowe dla kanału Hursta
-  const [emaData, setEmaData] = useState([]); // Dane godzinowe dla EMA
-
-  // Przetworzone kanały i wskaźniki
-  const [hurstChannel, setHurstChannel] = useState({ upper: [], lower: [] });
-  const [emaTrend, setEmaTrend] = useState([]);
-
-  // Połączone dane do wykresu
-  const [combinedData, setCombinedData] = useState([]);
-
-  // Opcje wyświetlania
-  const [timeframes, setTimeframes] = useState({
-    price: "1m",
-    hurst: "15m",
-    ema: "1h",
-  });
-  const [showHurst, setShowHurst] = useState(true);
-  const [showEMA, setShowEMA] = useState(true);
-  const [showPositions, setShowPositions] = useState(true);
-  const [positions, setPositions] = useState([]);
-
-  // Pobierz dane historyczne gdy komponent jest aktywny
-  useEffect(() => {
-    console.log(
-      "Chart useEffect triggered - isActive:",
-      isActive,
-      "instance:",
-      instance?.symbol
-    );
-
-    // Nie rób nic, jeśli wykres nie jest aktywny lub brak instancji
-    if (!isActive || !instance) {
-      console.log("Chart inactive or no instance, skipping data fetch");
-      return;
+  // Pobieranie parametrów z instancji
+  const getInstanceParams = () => {
+    if (!instance || !instance.strategy || !instance.strategy.parameters) {
+      return {
+        symbol: "BTCUSDT",
+        hurst: {
+          periods: 25,
+          upperDeviationFactor: 2.0,
+          lowerDeviationFactor: 2.0,
+          interval: "15m",
+        },
+        ema: {
+          periods: 30,
+          interval: "1h",
+        },
+      };
     }
 
-    // Funkcja pobierająca dane świecowe z paginacją
-    const fetchCandlesWithPagination = async (
-      symbol,
-      timeframe,
-      expectedCandles
-    ) => {
-      // Określ aktualny zakres dat
+    return {
+      symbol: instance.symbol || "BTCUSDT",
+      hurst: instance.strategy.parameters.hurst || {
+        periods: 25,
+        upperDeviationFactor: 2.0,
+        lowerDeviationFactor: 2.0,
+        interval: "15m",
+      },
+      ema: instance.strategy.parameters.ema || {
+        periods: 30,
+        interval: "1h",
+      },
+    };
+  };
+
+  // Pobieranie danych świecowych
+  const fetchCandleData = async (symbol, interval) => {
+    try {
+      setLoadingStatus(`Pobieranie danych ${interval} dla ${symbol}...`);
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.error("No token available");
+        throw new Error("Brak tokenu autoryzacyjnego");
+      }
+
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 14);
+      startDate.setDate(endDate.getDate() - 4); // 4 dni wstecz
 
-      const startTime = startDate.getTime();
-      const endTime = endDate.getTime();
+      const url = `/api/v1/market/klines/${symbol}/${interval}?startTime=${startDate.getTime()}&endTime=${endDate.getTime()}&limit=1000`;
+      console.log(`Fetching ${interval} data from:`, url);
 
-      console.log(
-        `Pobieranie danych od ${startDate.toISOString()} do ${endDate.toISOString()}`
-      );
-
-      // Podziel cały zakres na mniejsze fragmenty (1 dzień każdy)
-      const allCandles = [];
-      const daysToFetch = 14;
-
-      // Pobieranie danych dzień po dniu
-      for (let i = 0; i < daysToFetch; i++) {
-        const dayEndDate = new Date(endDate);
-        dayEndDate.setDate(endDate.getDate() - i);
-        dayEndDate.setHours(23, 59, 59, 999);
-
-        const dayStartDate = new Date(dayEndDate);
-        dayStartDate.setHours(0, 0, 0, 0);
-
-        const dayStartTime = dayStartDate.getTime();
-        const dayEndTime = dayEndDate.getTime();
-
-        console.log(
-          `Pobieranie dnia ${i + 1}/14: ${
-            dayStartDate.toISOString().split("T")[0]
-          }`
-        );
-
-        const url = `/api/v1/market/klines/${symbol}/${timeframe}?startTime=${dayStartTime}&endTime=${dayEndTime}&limit=1500`;
-
-        const token = localStorage.getItem("token");
-        const headers = {
-          Authorization: token ? `Bearer ${token}` : undefined,
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
-        };
+        },
+      });
 
-        try {
-          const response = await fetch(url, { headers });
-
-          if (!response.ok) {
-            console.warn(`Błąd pobierania dnia ${i + 1}: ${response.status}`);
-            continue; // Przejdź do następnego dnia
-          }
-
-          const responseData = await response.json();
-
-          // Wyodrębnij świece z odpowiedzi
-          let candles;
-          if (Array.isArray(responseData)) {
-            candles = responseData;
-          } else if (
-            responseData.candles &&
-            Array.isArray(responseData.candles)
-          ) {
-            candles = responseData.candles;
-          } else {
-            console.warn(`Nieoczekiwany format odpowiedzi dla dnia ${i + 1}`);
-            continue;
-          }
-
-          console.log(`Pobrano ${candles.length} świec dla dnia ${i + 1}`);
-          allCandles.push(...candles);
-
-          // Aktualizuj postęp ładowania
-          setLoadingProgress((prev) => ({
-            ...prev,
-            loaded: prev.loaded + candles.length,
-          }));
-
-          // Krótka przerwa między zapytaniami
-          await new Promise((resolve) => setTimeout(resolve, 300));
-        } catch (error) {
-          console.error(`Błąd podczas pobierania dnia ${i + 1}:`, error);
-        }
-      }
-
-      console.log(
-        `Zakończono pobieranie. Łącznie pobrano ${allCandles.length} świec`
-      );
-
-      // Sprawdź zakres dat
-      if (allCandles.length > 0) {
-        const times = allCandles.map((candle) => candle.openTime);
-        const oldestTime = Math.min(...times);
-        const newestTime = Math.max(...times);
-        console.log(
-          `Zakres dat w pobranych danych: od ${new Date(
-            oldestTime
-          ).toISOString()} do ${new Date(newestTime).toISOString()}`
+      if (!response.ok) {
+        console.error(
+          `HTTP error ${response.status} when fetching ${interval} data`
         );
-        console.log(
-          `Liczba dni: ${(newestTime - oldestTime) / (1000 * 60 * 60 * 24)}`
+        throw new Error(
+          `Błąd HTTP ${response.status} podczas pobierania danych ${interval}`
         );
       }
 
-      return allCandles;
-    };
+      const data = await response.json();
 
-    const fetchAllData = async () => {
-      console.log("Starting to fetch chart data...");
-      setLoading(true);
-      setError(null);
-      // Zresetuj postęp ładowania
-      setLoadingProgress({ total: 0, loaded: 0 });
-
-      try {
-        // Określ symbol na podstawie instancji lub użyj domyślnego BTCUSDT
-        const symbol = instance.symbol || "BTCUSDT";
-        console.log("Using symbol:", symbol);
-
-        // Określ datę początkową (2 tygodnie temu)
-        const twoWeeksAgo = new Date();
-        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-        const startTime = twoWeeksAgo.getTime();
-        console.log("Start time for data:", new Date(startTime).toISOString());
-
-        // Określ timeframe'y na podstawie instancji lub użyj domyślnych
-        const priceTimeframe = "1m"; // Zawsze 1m dla dokładnej linii ceny
-        const hurstTimeframe = instance?.intervals?.hurst || "15m";
-        const emaTimeframe = instance?.intervals?.ema || "1h";
-
-        // Aktualizuj informacje o timeframe'ach
-        setTimeframes({
-          price: priceTimeframe,
-          hurst: hurstTimeframe,
-          ema: emaTimeframe,
-        });
-
-        console.log("Using timeframes:", {
-          price: priceTimeframe,
-          hurst: hurstTimeframe,
-          ema: emaTimeframe,
-        });
-
-        // Oblicz oczekiwaną liczbę świec dla każdego timeframe'u
-        const minutesInTwoWeeks = 14 * 24 * 60; // 20160 minut
-        const expectedMinuteCandles = minutesInTwoWeeks; // 1 świeca na minutę
-        const expectedHurstCandles = Math.ceil(
-          minutesInTwoWeeks / getTimeframeInMinutes(hurstTimeframe)
+      // Sprawdź strukturę odpowiedzi
+      if (!data) {
+        console.error(`Empty response when fetching ${interval} data`);
+        throw new Error(
+          `Pusta odpowiedź podczas pobierania danych ${interval}`
         );
-        const expectedEmaCandles = Math.ceil(
-          minutesInTwoWeeks / getTimeframeInMinutes(emaTimeframe)
-        );
-
-        // Ustaw całkowity oczekiwany postęp ładowania
-        setLoadingProgress({
-          total:
-            expectedMinuteCandles + expectedHurstCandles + expectedEmaCandles,
-          loaded: 0,
-        });
-
-        // Sekwencyjne pobieranie danych - jedno po drugim
-
-        // 1. Pobierz dane minutowe dla dokładnej linii ceny
-        console.log(
-          `Fetching ${priceTimeframe} data for price, expecting ${expectedMinuteCandles} candles...`
-        );
-        const minuteDataRaw = await fetchCandlesWithPagination(
-          symbol,
-          priceTimeframe,
-          startTime,
-          expectedMinuteCandles
-        );
-        console.log("Received minute data:", minuteDataRaw.length, "candles");
-
-        if (minuteDataRaw.length === 0) {
-          throw new Error("Nie udało się pobrać danych minutowych");
-        }
-
-        // Sprawdź format danych
-        if (minuteDataRaw.length > 0) {
-          console.log("Sample minute candle:", minuteDataRaw[0]);
-        }
-
-        const processedMinuteData = processCandles(
-          minuteDataRaw,
-          priceTimeframe
-        );
-        setMinuteData(processedMinuteData);
-
-        // 2. Pobierz dane dla kanału Hursta
-        console.log(
-          `Fetching ${hurstTimeframe} data for Hurst channel, expecting ${expectedHurstCandles} candles...`
-        );
-        const hurstDataRaw = await fetchCandlesWithPagination(
-          symbol,
-          hurstTimeframe,
-          startTime,
-          expectedHurstCandles
-        );
-        console.log("Received Hurst data:", hurstDataRaw.length, "candles");
-
-        if (hurstDataRaw.length === 0) {
-          throw new Error("Nie udało się pobrać danych dla kanału Hursta");
-        }
-
-        // Sprawdź format danych
-        if (hurstDataRaw.length > 0) {
-          console.log("Sample Hurst candle:", hurstDataRaw[0]);
-        }
-
-        const processedHurstData = processCandles(hurstDataRaw, hurstTimeframe);
-        setHurstData(processedHurstData);
-
-        // 3. Pobierz dane dla EMA
-        console.log(
-          `Fetching ${emaTimeframe} data for EMA, expecting ${expectedEmaCandles} candles...`
-        );
-        const emaDataRaw = await fetchCandlesWithPagination(
-          symbol,
-          emaTimeframe,
-          startTime,
-          expectedEmaCandles
-        );
-        console.log("Received EMA data:", emaDataRaw.length, "candles");
-
-        if (emaDataRaw.length === 0) {
-          throw new Error("Nie udało się pobrać danych dla EMA");
-        }
-
-        // Sprawdź format danych
-        if (emaDataRaw.length > 0) {
-          console.log("Sample EMA candle:", emaDataRaw[0]);
-        }
-
-        const processedEmaData = processCandles(emaDataRaw, emaTimeframe);
-        setEmaData(processedEmaData);
-
-        // 4. Pobierz pozycje/sygnały jeśli włączone
-        if (showPositions && instance?._id) {
-          console.log("Fetching positions data...");
-          try {
-            const token = localStorage.getItem("token");
-            const headers = {
-              Authorization: token ? `Bearer ${token}` : undefined,
-              "Content-Type": "application/json",
-            };
-
-            const positionsUrl = `/api/v1/signals/instance/${instance._id}`;
-            const positionsResponse = await fetch(positionsUrl, { headers });
-
-            if (positionsResponse.ok) {
-              const signalsData = await positionsResponse.json();
-              console.log(
-                "Received signals data:",
-                signalsData.length,
-                "signals"
-              );
-
-              // Filtruj tylko te sygnały, które występują w zakresie czasu wykresu
-              const filteredPositions = signalsData.filter((signal) => {
-                const signalTime = new Date(signal.timestamp).getTime();
-                return signalTime >= startTime;
-              });
-
-              setPositions(filteredPositions);
-              console.log(
-                "Filtered positions in timeframe:",
-                filteredPositions.length
-              );
-            } else {
-              console.warn(
-                "Failed to fetch positions, status:",
-                positionsResponse.status
-              );
-            }
-          } catch (err) {
-            console.warn("Failed to fetch positions data:", err);
-            // Nie przerywa ładowania wykresu
-          }
-        }
-
-        // 5. Oblicz kanał Hursta
-        console.log("Calculating Hurst channel...");
-        const hurstParams = {
-          periods: instance?.hurst?.periods || 25,
-          upperDeviationFactor: instance?.hurst?.upperDeviationFactor || 2.0,
-          lowerDeviationFactor: instance?.hurst?.lowerDeviationFactor || 2.0,
-        };
-
-        const hurstChannelData = calculateHurstChannel(
-          processedHurstData,
-          hurstParams
-        );
-        setHurstChannel(hurstChannelData);
-
-        // 6. Oblicz EMA
-        console.log("Calculating EMA...");
-        const emaParams = {
-          periods: instance?.ema?.periods || 30,
-        };
-
-        const emaLineData = calculateEMA(processedEmaData, emaParams.periods);
-        setEmaTrend(emaLineData);
-
-        // 7. Połącz wszystkie dane do wykresu
-        console.log("Combining all data for chart...");
-        const combined = combineAllData(
-          processedMinuteData,
-          hurstChannelData,
-          emaLineData
-        );
-        const combinedTimes = combined.map((point) => point.time);
-        const combinedMinTime = new Date(Math.min(...combinedTimes));
-        const combinedMaxTime = new Date(Math.max(...combinedTimes));
-        console.log(
-          `Zakres dat przed optymalizacją: ${combinedMinTime.toISOString()} do ${combinedMaxTime.toISOString()}`
-        );
-        console.log(
-          `Liczba dni przed optymalizacją: ${
-            (combinedMaxTime - combinedMinTime) / (1000 * 60 * 60 * 24)
-          }`
-        );
-        setCombinedData(combined);
-        console.log(
-          "Data combination complete, chart data ready with",
-          combined.length,
-          "points"
-        );
-      } catch (err) {
-        console.error("Error during chart data processing:", err);
-        setError(err.message);
-      } finally {
-        console.log("Fetch complete, setting loading to false");
-        setLoading(false);
-      }
-    };
-
-    fetchAllData();
-
-    // Funkcja czyszcząca
-    return () => {
-      console.log("Chart useEffect cleanup");
-      if (!isActive) {
-        console.log("Chart inactive, clearing data");
-        setMinuteData([]);
-        setHurstData([]);
-        setEmaData([]);
-        setCombinedData([]);
-        setHurstChannel({ upper: [], lower: [] });
-        setEmaTrend([]);
-        setPositions([]);
-      }
-    };
-  }, [instance, isActive, showPositions]); // Pomocnicza funkcja uzyskująca interwał w milisekundach
-  const getTimeframeInMs = (timeframe) => {
-    const match = timeframe.match(/(\d+)([mhd])/);
-    if (!match) return 60000; // Domyślnie 1 minuta
-
-    const [_, value, unit] = match;
-    const numValue = parseInt(value, 10);
-
-    switch (unit) {
-      case "m":
-        return numValue * 60 * 1000; // minuty
-      case "h":
-        return numValue * 60 * 60 * 1000; // godziny
-      case "d":
-        return numValue * 24 * 60 * 60 * 1000; // dni
-      default:
-        return 60000; // domyślnie 1 minuta
-    }
-  };
-
-  // Pomocnicza funkcja uzyskująca interwał w minutach
-  const getTimeframeInMinutes = (timeframe) => {
-    const match = timeframe.match(/(\d+)([mhd])/);
-    if (!match) return 1; // Domyślnie 1 minuta
-
-    const [_, value, unit] = match;
-    const numValue = parseInt(value, 10);
-
-    switch (unit) {
-      case "m":
-        return numValue; // minuty
-      case "h":
-        return numValue * 60; // godziny
-      case "d":
-        return numValue * 24 * 60; // dni
-      default:
-        return 1; // domyślnie 1 minuta
-    }
-  };
-
-  // Funkcja przetwarzająca dane świecowe
-  const processCandles = (candlesData, timeframe) => {
-    if (!Array.isArray(candlesData)) {
-      console.error("candlesData is not an array:", candlesData);
-      // Sprawdź różne możliwe formaty odpowiedzi
-      if (
-        candlesData &&
-        candlesData.candles &&
-        Array.isArray(candlesData.candles)
-      ) {
-        candlesData = candlesData.candles;
-      } else if (
-        candlesData &&
-        candlesData.data &&
-        Array.isArray(candlesData.data)
-      ) {
-        candlesData = candlesData.data;
-      } else if (candlesData && typeof candlesData === "object") {
-        // Próbuj wyodrębnić dane z innych pól
-        for (const key in candlesData) {
-          if (Array.isArray(candlesData[key])) {
-            console.log("Found array in field:", key);
-            candlesData = candlesData[key];
-            break;
-          }
-        }
       }
 
-      if (!Array.isArray(candlesData)) {
-        console.error("Could not extract array from response:", candlesData);
-        return [];
+      console.log(`${interval} data response:`, data);
+
+      // Przygotuj dane w odpowiednim formacie
+      const candles = data.candles || (Array.isArray(data) ? data : []);
+
+      if (candles.length === 0) {
+        console.error(`No candles found in ${interval} data`);
+        throw new Error(`Brak świec w danych ${interval}`);
       }
-    }
 
-    // Sprawdź, czy dane mają oczekiwany format
-    if (
-      candlesData.length > 0 &&
-      (!candlesData[0].openTime || !candlesData[0].close)
-    ) {
-      console.error("Unexpected candle data format:", candlesData[0]);
-      // Spróbuj dostosować format, jeśli możliwe
-      return [];
-    }
-
-    return candlesData.map((candle) => {
-      const openTime = new Date(candle.openTime).getTime();
-      return {
-        time: openTime,
-        timestamp: candle.openTime,
-        date: new Date(candle.openTime).toLocaleDateString(),
-        timeframe: timeframe,
+      const formattedCandles = candles.map((candle) => ({
+        time: Math.floor(new Date(candle.openTime).getTime() / 1000),
+        jsTime: new Date(candle.openTime).getTime(), // Czas w formacie JS (dla łatwiejszego formatowania)
         open: parseFloat(candle.open),
         high: parseFloat(candle.high),
         low: parseFloat(candle.low),
         close: parseFloat(candle.close),
         volume: parseFloat(candle.volume),
-      };
-    });
-  };
+      }));
 
-  // Funkcja łącząca wszystkie dane do jednego szeregu czasowego
-  const combineAllData = (minuteData, hurstChannel, emaTrend) => {
-    if (!minuteData.length) return [];
+      console.log(
+        `Processed ${formattedCandles.length} candles for ${interval}`
+      );
+      setLoadingStatus(
+        `Pobrano ${formattedCandles.length} świec dla ${interval}`
+      );
 
-    // Użyj minutowych danych jako podstawy - najwyższa rozdzielczość
-    const result = [...minuteData].map((item) => ({ ...item }));
-
-    // Funkcja pomocnicza do znajdowania najbliższego punktu czasowego
-    const findNearestTimeIndex = (timeArray, targetTime) => {
-      let closestIndex = -1;
-      let minDiff = Infinity;
-
-      for (let i = 0; i < timeArray.length; i++) {
-        const diff = Math.abs(timeArray[i].time - targetTime);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closestIndex = i;
-        }
-      }
-
-      return closestIndex;
-    };
-
-    // Dodaj górną bandę kanału Hursta
-    if (hurstChannel.upper.length > 0) {
-      hurstChannel.upper.forEach((point) => {
-        const index = findNearestTimeIndex(result, point.time);
-        if (index !== -1) {
-          result[index].hurstUpper = point.value;
-        }
-      });
-    }
-
-    // Dodaj dolną bandę kanału Hursta
-    if (hurstChannel.lower.length > 0) {
-      hurstChannel.lower.forEach((point) => {
-        const index = findNearestTimeIndex(result, point.time);
-        if (index !== -1) {
-          result[index].hurstLower = point.value;
-        }
-      });
-    }
-
-    // Dodaj linię EMA
-    if (emaTrend.length > 0) {
-      emaTrend.forEach((point) => {
-        const index = findNearestTimeIndex(result, point.time);
-        if (index !== -1) {
-          result[index].ema = point.value;
-        }
-      });
-    }
-
-    // Sortuj dane według czasu
-    result.sort((a, b) => a.time - b.time);
-
-    // Interpolacja wartości dla punktów, które nie mają wartości
-    // To zapewni ciągłość linii na wykresie
-    interpolateValues(result, "hurstUpper");
-    interpolateValues(result, "hurstLower");
-    interpolateValues(result, "ema");
-
-    return result;
-  };
-
-  // Funkcja do interpolacji wartości dla ciągłości linii
-  const interpolateValues = (data, property) => {
-    if (!data || data.length === 0) return;
-
-    let lastValidIndex = -1;
-
-    // Znajdź pierwszy punkt z wartością
-    for (let i = 0; i < data.length; i++) {
-      if (data[i][property] !== undefined) {
-        lastValidIndex = i;
-        break;
-      }
-    }
-
-    if (lastValidIndex === -1) return; // Brak punktów z wartościami
-
-    // Iteruj przez wszystkie punkty
-    for (let i = lastValidIndex + 1; i < data.length; i++) {
-      if (data[i][property] !== undefined) {
-        // Znaleziono kolejny punkt z wartością, interpoluj wszystkie punkty pomiędzy
-        if (i > lastValidIndex + 1) {
-          const startValue = data[lastValidIndex][property];
-          const endValue = data[i][property];
-          const totalSteps = i - lastValidIndex;
-
-          for (let j = lastValidIndex + 1; j < i; j++) {
-            const step = j - lastValidIndex;
-            data[j][property] =
-              startValue + (endValue - startValue) * (step / totalSteps);
-          }
-        }
-
-        lastValidIndex = i;
-      }
+      return formattedCandles;
+    } catch (err) {
+      console.error(`Error fetching ${interval} data:`, err);
+      setLoadingStatus(`Błąd: ${err.message}`);
+      throw err;
     }
   };
 
-  // Funkcja do obliczania kanału Hursta
+  // Pobieranie transakcji dla instancji
+  const fetchTransactionsForInstance = async (instanceId) => {
+    try {
+      setLoadingStatus("Pobieranie historii transakcji...");
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        console.error("No token available");
+        throw new Error("Brak tokenu autoryzacyjnego");
+      }
+
+      // URL do API transakcji - dostosuj według rzeczywistego API
+      const url = `/api/v1/transactions?instanceId=${instanceId}&limit=100`;
+      console.log(`Fetching transactions from:`, url);
+
+      try {
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          console.warn(
+            `HTTP error ${response.status} when fetching transactions`
+          );
+          // Jeśli nie udało się pobrać - wygeneruj testowe dane
+          return generateTestTransactions();
+        }
+
+        const data = await response.json();
+
+        if (!data || !Array.isArray(data)) {
+          console.warn("Invalid transactions data format");
+          return generateTestTransactions();
+        }
+
+        // Mapuj dane do formatu używanego przez wykres
+        const mappedTransactions = data.map((tx) => ({
+          id: tx.id,
+          openTime: new Date(tx.openTime).getTime(),
+          closeTime: tx.closeTime ? new Date(tx.closeTime).getTime() : null,
+          type: tx.type || tx.direction, // BUY/SELL lub LONG/SHORT
+          openPrice: parseFloat(tx.openPrice),
+          closePrice: tx.closePrice ? parseFloat(tx.closePrice) : null,
+          status: tx.status, // OPEN/CLOSED
+        }));
+
+        console.log("Transactions loaded:", mappedTransactions);
+        return mappedTransactions;
+      } catch (err) {
+        console.warn("Error fetching transactions:", err);
+        // Fallback do testowych danych
+        return generateTestTransactions();
+      }
+    } catch (err) {
+      console.error("Error in transaction processing:", err);
+      setLoadingStatus(`Błąd pobierania transakcji: ${err.message}`);
+      return generateTestTransactions();
+    }
+  };
+
+  // Generowanie testowych danych transakcji
+  const generateTestTransactions = () => {
+    console.log("Generating test transactions");
+    setLoadingStatus("Używanie przykładowych transakcji (brak dostępu do API)");
+
+    // Pobierz zakres dat z aktualnych świec
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+
+    // Utwórz kilka testowych transakcji w zakresie ostatnich 4 dni
+    return [
+      {
+        id: "tx1",
+        openTime: now - 3.5 * day,
+        closeTime: now - 3 * day,
+        type: "BUY",
+        openPrice: 86200, // Bardziej realistyczne ceny BTC
+        closePrice: 86800,
+        status: "CLOSED",
+      },
+      {
+        id: "tx2",
+        openTime: now - 2.5 * day,
+        closeTime: now - 1.8 * day,
+        type: "SELL",
+        openPrice: 87000,
+        closePrice: 86300,
+        status: "CLOSED",
+      },
+      {
+        id: "tx3",
+        openTime: now - 1.5 * day,
+        closeTime: now - 0.8 * day,
+        type: "BUY",
+        openPrice: 85800,
+        closePrice: 86600,
+        status: "CLOSED",
+      },
+      {
+        id: "tx4",
+        openTime: now - 0.5 * day,
+        closeTime: null,
+        type: "BUY",
+        openPrice: 86400,
+        closePrice: null,
+        status: "OPEN",
+      },
+    ];
+  };
+
+  // Obliczenie kanału Hursta
   const calculateHurstChannel = (data, params) => {
     if (!data || data.length < params.periods) {
-      console.log("Not enough data for Hurst calculation");
-      return { upper: [], lower: [] };
+      console.error("Not enough data for Hurst calculation", {
+        dataLength: data?.length,
+        requiredPeriods: params.periods,
+      });
+      setLoadingStatus(
+        `Za mało danych dla kanału Hursta (dostępne: ${data?.length}, wymagane: ${params.periods})`
+      );
+      return { upper: [], lower: [], middle: [] };
     }
 
-    // Oblicz średnią dla określonej liczby okresów
-    const movingAvg = [];
-    for (let i = params.periods - 1; i < data.length; i++) {
-      let sum = 0;
-      for (let j = 0; j < params.periods; j++) {
-        sum += data[i - j].close;
+    try {
+      setLoadingStatus("Obliczanie kanału Hursta...");
+
+      // Obliczenie średniej ruchomej
+      const movingAvg = [];
+      for (let i = params.periods - 1; i < data.length; i++) {
+        let sum = 0;
+        for (let j = 0; j < params.periods; j++) {
+          sum += data[i - j].close;
+        }
+        const avg = sum / params.periods;
+        movingAvg.push({
+          time: data[i].time,
+          jsTime: data[i].jsTime,
+          value: avg,
+        });
       }
-      const avg = sum / params.periods;
-      movingAvg.push({ time: data[i].time, value: avg });
-    }
 
-    // Oblicz odchylenie standardowe
-    const deviations = [];
-    for (let i = params.periods - 1; i < data.length; i++) {
-      let sumSquares = 0;
-      for (let j = 0; j < params.periods; j++) {
-        const diff =
-          data[i - j].close - movingAvg[i - (params.periods - 1)].value;
-        sumSquares += diff * diff;
+      // Obliczenie odchylenia standardowego
+      const deviations = [];
+      for (let i = params.periods - 1; i < data.length; i++) {
+        let sumSquares = 0;
+        for (let j = 0; j < params.periods; j++) {
+          const diff =
+            data[i - j].close - movingAvg[i - (params.periods - 1)].value;
+          sumSquares += diff * diff;
+        }
+        const stdDev = Math.sqrt(sumSquares / params.periods);
+        deviations.push({
+          time: data[i].time,
+          jsTime: data[i].jsTime,
+          value: stdDev,
+        });
       }
-      const stdDev = Math.sqrt(sumSquares / params.periods);
-      deviations.push({ time: data[i].time, value: stdDev });
+
+      // Tworzenie górnej i dolnej bandy
+      const upper = movingAvg.map((point, index) => ({
+        time: point.time,
+        jsTime: point.jsTime,
+        value:
+          point.value + deviations[index].value * params.upperDeviationFactor,
+      }));
+
+      const lower = movingAvg.map((point, index) => ({
+        time: point.time,
+        jsTime: point.jsTime,
+        value:
+          point.value - deviations[index].value * params.lowerDeviationFactor,
+      }));
+
+      console.log("Hurst channel calculated successfully", {
+        upperPoints: upper.length,
+        lowerPoints: lower.length,
+        middlePoints: movingAvg.length,
+      });
+
+      setLoadingStatus("Kanał Hursta obliczony pomyślnie");
+
+      return { upper, lower, middle: movingAvg };
+    } catch (err) {
+      console.error("Error calculating Hurst channel:", err);
+      setLoadingStatus(`Błąd obliczania kanału Hursta: ${err.message}`);
+      return { upper: [], lower: [], middle: [] };
     }
-
-    // Utwórz górną i dolną bandę
-    const upper = movingAvg.map((point, index) => ({
-      time: point.time,
-      value:
-        point.value + deviations[index].value * params.upperDeviationFactor,
-    }));
-
-    const lower = movingAvg.map((point, index) => ({
-      time: point.time,
-      value:
-        point.value - deviations[index].value * params.lowerDeviationFactor,
-    }));
-
-    return { upper, lower };
   };
 
-  // Funkcja do obliczania EMA
+  // Obliczenie EMA
   const calculateEMA = (data, periods) => {
     if (!data || data.length < periods) {
-      console.log("Not enough data for EMA calculation");
+      console.error("Not enough data for EMA calculation", {
+        dataLength: data?.length,
+        requiredPeriods: periods,
+      });
+      setLoadingStatus(
+        `Za mało danych dla EMA (dostępne: ${data?.length}, wymagane: ${periods})`
+      );
       return [];
     }
 
-    const ema = [];
-    // Oblicz SMA dla pierwszego punktu
-    let sum = 0;
-    for (let i = 0; i < periods; i++) {
-      sum += data[i].close;
+    try {
+      setLoadingStatus("Obliczanie EMA...");
+
+      const k = 2 / (periods + 1);
+      const emaResults = [];
+
+      // Pierwsza wartość EMA to średnia prosta
+      let sum = 0;
+      for (let i = 0; i < periods; i++) {
+        sum += data[i].close;
+      }
+      const firstEMA = sum / periods;
+      emaResults.push({
+        time: data[periods - 1].time,
+        jsTime: data[periods - 1].jsTime,
+        value: firstEMA,
+      });
+
+      // Obliczanie kolejnych EMA
+      for (let i = periods; i < data.length; i++) {
+        const currentEMA =
+          data[i].close * k + emaResults[emaResults.length - 1].value * (1 - k);
+        emaResults.push({
+          time: data[i].time,
+          jsTime: data[i].jsTime,
+          value: currentEMA,
+        });
+      }
+
+      console.log("EMA calculated successfully", { points: emaResults.length });
+      setLoadingStatus("EMA obliczone pomyślnie");
+
+      return emaResults;
+    } catch (err) {
+      console.error("Error calculating EMA:", err);
+      setLoadingStatus(`Błąd obliczania EMA: ${err.message}`);
+      return [];
     }
-    const sma = sum / periods;
-
-    // Dodaj pierwszy punkt EMA (równy SMA)
-    ema.push({ time: data[periods - 1].time, value: sma });
-
-    // Oblicz mnożnik
-    const multiplier = 2 / (periods + 1);
-
-    // Oblicz EMA dla pozostałych punktów
-    for (let i = periods; i < data.length; i++) {
-      const prevEma = ema[ema.length - 1].value;
-      const currentEma = (data[i].close - prevEma) * multiplier + prevEma;
-      ema.push({ time: data[i].time, value: currentEma });
-    }
-
-    return ema;
   };
 
-  // Renderowanie pozycji handlowych jako referencyjne punkty/linie
-  const renderPositionMarkers = () => {
-    if (!showPositions || !positions.length || !combinedData.length)
-      return null;
+  // Funkcja formatująca datę
+  const formatDate = (timestamp) => {
+    const date = new Date(timestamp);
+    return `${date.getDate().toString().padStart(2, "0")}.${(
+      date.getMonth() + 1
+    )
+      .toString()
+      .padStart(2, "0")} ${date.getHours().toString().padStart(2, "0")}:${date
+      .getMinutes()
+      .toString()
+      .padStart(2, "0")}`;
+  };
 
-    return positions.map((position, index) => {
-      // Określ kolor w zależności od typu sygnału
-      const color =
-        position.type === "entry"
-          ? "#4CAF50"
-          : position.type === "exit"
-          ? "#F44336"
-          : "#FF9800";
+  // Funkcja formatująca cenę
+  const formatPrice = (price) => {
+    if (!price) return "N/A";
+    // Formatuj cenę z odpowiednią liczbą miejsc po przecinku
+    if (price > 1000) {
+      return price.toFixed(2);
+    } else if (price > 100) {
+      return price.toFixed(3);
+    } else {
+      return price.toFixed(4);
+    }
+  };
 
-      const time = new Date(position.timestamp).getTime();
+  // Znajdź rzeczywisty zakres cen dla lepszego skalowania
+  const findActualPriceRange = (data, hurstChannel, emaData, txData) => {
+    if (!data || data.length === 0) return { min: 0, max: 100 };
 
-      // Znajdź najbliższy punkt czasowy w danych
-      let closestIndex = -1;
-      let minDiff = Infinity;
+    // Użyj aktualnej ceny jako punktu odniesienia
+    const lastPrice = data[data.length - 1].close;
 
-      for (let i = 0; i < combinedData.length; i++) {
-        const diff = Math.abs(combinedData[i].time - time);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closestIndex = i;
+    // Ustaw zakres jako +/- 5% aktualnej ceny
+    const range = lastPrice * 0.01;
+    let minPrice = lastPrice - range;
+    let maxPrice = lastPrice + range;
+
+    // Sprawdź, czy kanały Hursta mieszczą się w tym zakresie
+    // Jeśli nie, delikatnie rozszerz zakres
+    if (hurstChannel) {
+      // Weź tylko ostatnie 20% punktów dla aktualnego widoku
+      const lastPointsCount = Math.max(20, Math.floor(data.length * 0.2));
+
+      if (hurstChannel.upper && hurstChannel.upper.length > 0) {
+        const recentUpper = hurstChannel.upper.slice(-lastPointsCount);
+        const maxUpper = Math.max(...recentUpper.map((p) => p.value));
+        if (maxUpper > maxPrice) {
+          maxPrice = maxUpper;
         }
       }
 
-      if (closestIndex === -1) return null;
-
-      const xValue = combinedData[closestIndex].time;
-      const price = position.price;
-
-      // Dla sygnałów wejścia pokaż punkt
-      if (position.type === "entry") {
-        return (
-          <ReferenceDot
-            key={`position-${index}`}
-            x={xValue}
-            y={price}
-            r={5}
-            fill={color}
-            stroke="none"
-          />
-        );
+      if (hurstChannel.lower && hurstChannel.lower.length > 0) {
+        const recentLower = hurstChannel.lower.slice(-lastPointsCount);
+        const minLower = Math.min(...recentLower.map((p) => p.value));
+        if (minLower < minPrice) {
+          minPrice = minLower;
+        }
       }
+    }
 
-      // Dla sygnałów wyjścia pokaż linię poziomą
-      if (position.type === "exit") {
-        return (
-          <ReferenceLine
-            key={`position-${index}`}
-            y={price}
-            stroke={color}
-            strokeWidth={1}
-            strokeDasharray="3 3"
-            label={{
-              position: "right",
-              value: `Wyjście: $${price.toFixed(2)}`,
-              fill: color,
-            }}
-          />
-        );
-      }
-
-      return null;
-    });
-  };
-
-  // Handler do przycisku aktywacji wykresu
-  const handleToggleClick = () => {
-    console.log("Chart toggle button clicked");
-    if (typeof onToggle === "function") {
-      onToggle();
+    // Zaokrągl dla lepszej czytelności - do setek dla BTC
+    if (lastPrice > 1000) {
+      minPrice = Math.floor(minPrice / 100) * 100;
+      maxPrice = Math.ceil(maxPrice / 100) * 100;
     } else {
-      console.error("onToggle is not a function:", onToggle);
+      // Dla innych aktywów używaj mniejszych jednostek
+      minPrice = Math.floor(minPrice * 20) / 20;
+      maxPrice = Math.ceil(maxPrice * 20) / 20;
+    }
+
+    console.log(
+      `Skalowanie osi Y: ${minPrice} - ${maxPrice} (aktualna cena: ${lastPrice})`
+    );
+
+    return { min: minPrice, max: maxPrice };
+  };
+  // Funkcja inicjalizująca rozbudowany wykres Canvas
+  const drawEnhancedChart = (
+    container,
+    candleData,
+    hurstChannel,
+    emaData,
+    txData
+  ) => {
+    try {
+      setLoadingStatus("Rysowanie wykresu...");
+
+      // Wyczyść kontener
+      container.innerHTML = "";
+
+      // Utwórz canvas
+      const canvas = document.createElement("canvas");
+      canvas.width = container.clientWidth;
+      canvas.height = 500; // Wyższy wykres
+      container.appendChild(canvas);
+
+      const ctx = canvas.getContext("2d");
+
+      // Sprawdź czy mamy dane do rysowania
+      if (!candleData || candleData.length === 0) {
+        ctx.font = "16px Arial";
+        ctx.fillStyle = "white";
+        ctx.fillText("Brak danych do wyświetlenia", 20, 50);
+        return;
+      }
+
+      // Stałe dla layoutu
+      const marginTop = 40;
+      const marginBottom = 60;
+      const marginLeft = 80;
+      const marginRight = 160; // Większy margines dla legendy po prawej
+
+      const chartWidth = canvas.width - marginLeft - marginRight;
+      const chartHeight = canvas.height - marginTop - marginBottom;
+
+      // Znajdź min i max wartości dla skalowania - tylko rzeczywisty zakres danych
+      const priceRange = findActualPriceRange(
+        candleData,
+        hurstChannel,
+        emaData,
+        txData
+      );
+      const minPrice = priceRange.min;
+      const maxPrice = priceRange.max;
+
+      // Ustaw czarny background dla całego obszaru
+      ctx.fillStyle = "#1E1E1E"; // Ciemny tło (szare)
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Dodaj obszar wykresu
+      ctx.fillStyle = "#000000"; // Czarne tło wykresu
+      ctx.fillRect(marginLeft, marginTop, chartWidth, chartHeight);
+
+      // Funkcje skalujące
+      const scaleX = (time) => {
+        const minTime = candleData[0].jsTime;
+        const maxTime = candleData[candleData.length - 1].jsTime;
+        return (
+          marginLeft + ((time - minTime) / (maxTime - minTime)) * chartWidth
+        );
+      };
+
+      const scaleY = (price) => {
+        return (
+          marginTop +
+          chartHeight -
+          ((price - minPrice) / (maxPrice - minPrice)) * chartHeight
+        );
+      };
+
+      // Rysuj siatkę i osie
+      ctx.strokeStyle = "#333333"; // Kolor siatki
+      ctx.lineWidth = 0.5;
+
+      // Poziome linie siatki i etykiety osi Y (ceny)
+      const yGridCount = 10;
+      for (let i = 0; i <= yGridCount; i++) {
+        const y = marginTop + (chartHeight / yGridCount) * i;
+        const price = maxPrice - (i / yGridCount) * (maxPrice - minPrice);
+
+        // Linia siatki
+        ctx.beginPath();
+        ctx.moveTo(marginLeft, y);
+        ctx.lineTo(marginLeft + chartWidth, y);
+        ctx.stroke();
+
+        // Etykieta ceny
+        ctx.font = "10px Arial";
+        ctx.fillStyle = "#AAAAAA";
+        ctx.textAlign = "right";
+        ctx.fillText(formatPrice(price), marginLeft - 5, y + 3);
+      }
+
+      // Pionowe linie siatki i etykiety osi X (daty)
+      const xGridCount = 8; // Więcej podziałek czasowych
+      const minTime = candleData[0].jsTime;
+      const maxTime = candleData[candleData.length - 1].jsTime;
+
+      for (let i = 0; i <= xGridCount; i++) {
+        const x = marginLeft + (chartWidth / xGridCount) * i;
+        const time = minTime + (i / xGridCount) * (maxTime - minTime);
+
+        // Linia siatki
+        ctx.beginPath();
+        ctx.moveTo(x, marginTop);
+        ctx.lineTo(x, marginTop + chartHeight);
+        ctx.stroke();
+
+        // Etykieta daty
+        ctx.save();
+        ctx.translate(x, marginTop + chartHeight + 15);
+        ctx.rotate(-Math.PI / 4); // Obróć etykiety dla lepszej czytelności
+        ctx.font = "10px Arial";
+        ctx.fillStyle = "#AAAAAA";
+        ctx.textAlign = "right";
+        ctx.fillText(formatDate(time), 0, 0);
+        ctx.restore();
+      }
+
+      // Rysuj tytuł wykresu
+      const params = getInstanceParams();
+      ctx.font = "12px Arial";
+      ctx.fillStyle = "#FFFFFF";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        `${params.symbol} - Kanał Hursta: ${params.hurst.interval} (${params.hurst.periods}) - EMA: ${params.ema.interval} (${params.ema.periods})`,
+        canvas.width / 2 - marginRight / 2,
+        20
+      );
+
+      // Rysuj legendę - całkowicie po prawej stronie wykresu
+      const legendX = marginLeft + chartWidth + 20;
+      const legendY = marginTop + 20;
+
+      ctx.font = "11px Arial";
+      ctx.fillStyle = "#FFFFFF";
+      ctx.textAlign = "left";
+      ctx.fillText("Legenda:", legendX, legendY);
+
+      // Kanał Hursta - górna banda
+      ctx.strokeStyle = "rgba(76, 175, 80, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 3]);
+      ctx.beginPath();
+      ctx.moveTo(legendX, legendY + 20);
+      ctx.lineTo(legendX + 30, legendY + 20);
+      ctx.stroke();
+      ctx.fillText("Hurst górny", legendX + 40, legendY + 24);
+
+      // Kanał Hursta - dolna banda
+      ctx.strokeStyle = "rgba(244, 67, 54, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 3]);
+      ctx.beginPath();
+      ctx.moveTo(legendX, legendY + 40);
+      ctx.lineTo(legendX + 30, legendY + 40);
+      ctx.stroke();
+      ctx.fillText("Hurst dolny", legendX + 40, legendY + 44);
+
+      // EMA
+      if (emaData && emaData.length > 0) {
+        ctx.strokeStyle = "rgba(33, 150, 243, 0.8)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(legendX, legendY + 60);
+        ctx.lineTo(legendX + 30, legendY + 60);
+        ctx.stroke();
+        ctx.fillText(`EMA(${params.ema.periods})`, legendX + 40, legendY + 64);
+      }
+
+      // Świece
+      ctx.fillStyle = "#4CAF50";
+      ctx.fillRect(legendX, legendY + 80, 15, 15);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillText("Wzrost", legendX + 40, legendY + 94);
+
+      ctx.fillStyle = "#F44336";
+      ctx.fillRect(legendX, legendY + 100, 15, 15);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillText("Spadek", legendX + 40, legendY + 114);
+
+      // Transakcje
+      if (txData && txData.length > 0) {
+        // Symbol wejścia
+        ctx.beginPath();
+        ctx.moveTo(legendX, legendY + 130);
+        ctx.lineTo(legendX + 15, legendY + 120);
+        ctx.lineTo(legendX + 15, legendY + 140);
+        ctx.closePath();
+        ctx.fillStyle = "#FFEB3B"; // Żółty
+        ctx.fill();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillText("Wejście", legendX + 40, legendY + 134);
+
+        // Symbol wyjścia
+        ctx.beginPath();
+        ctx.arc(legendX + 7, legendY + 155, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = "#FF9800"; // Pomarańczowy
+        ctx.fill();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillText("Wyjście", legendX + 40, legendY + 159);
+      }
+
+      // Rysuj kanał Hursta jeśli jest dostępny
+      if (hurstChannel) {
+        // Rysuj górną bandę
+        if (hurstChannel.upper && hurstChannel.upper.length > 0) {
+          ctx.strokeStyle = "rgba(76, 175, 80, 0.8)"; // Zielony
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 3]); // Przerywana linia
+
+          ctx.beginPath();
+
+          let firstPointDrawn = false;
+          hurstChannel.upper.forEach((point) => {
+            const x = scaleX(point.jsTime);
+            const y = scaleY(point.value);
+
+            if (!firstPointDrawn) {
+              ctx.moveTo(x, y);
+              firstPointDrawn = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          });
+
+          ctx.stroke();
+        }
+
+        // Rysuj dolną bandę
+        if (hurstChannel.lower && hurstChannel.lower.length > 0) {
+          ctx.strokeStyle = "rgba(244, 67, 54, 0.8)"; // Czerwony
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 3]); // Przerywana linia
+
+          ctx.beginPath();
+
+          let firstPointDrawn = false;
+          hurstChannel.lower.forEach((point) => {
+            const x = scaleX(point.jsTime);
+            const y = scaleY(point.value);
+
+            if (!firstPointDrawn) {
+              ctx.moveTo(x, y);
+              firstPointDrawn = true;
+            } else {
+              ctx.lineTo(x, y);
+            }
+          });
+
+          ctx.stroke();
+        }
+
+        // Resetuj styl linii
+        ctx.setLineDash([]);
+      }
+
+      // Rysuj EMA jeśli jest dostępna
+      if (emaData && emaData.length > 0) {
+        ctx.strokeStyle = "rgba(33, 150, 243, 0.8)"; // Niebieski
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]); // Ciągła linia
+
+        ctx.beginPath();
+
+        let firstPointDrawn = false;
+        emaData.forEach((point) => {
+          const x = scaleX(point.jsTime);
+          const y = scaleY(point.value);
+
+          if (!firstPointDrawn) {
+            ctx.moveTo(x, y);
+            firstPointDrawn = true;
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+
+        ctx.stroke();
+      }
+
+      // Rysuj świece
+      const candleWidth = Math.min(
+        8,
+        Math.max(2, chartWidth / candleData.length / 1.5)
+      );
+
+      candleData.forEach((candle) => {
+        const x = scaleX(candle.jsTime);
+
+        const open = scaleY(candle.open);
+        const close = scaleY(candle.close);
+        const high = scaleY(candle.high);
+        const low = scaleY(candle.low);
+
+        // Rysuj knot
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, high);
+        ctx.lineTo(x, low);
+        ctx.stroke();
+
+        // Rysuj ciało świecy
+        if (candle.close > candle.open) {
+          ctx.fillStyle = "#4CAF50"; // Zielony dla wzrostów
+        } else {
+          ctx.fillStyle = "#F44336"; // Czerwony dla spadków
+        }
+
+        const candleHeight = Math.abs(close - open);
+        ctx.fillRect(
+          x - candleWidth / 2,
+          Math.min(open, close),
+          candleWidth,
+          Math.max(1, candleHeight)
+        );
+      });
+
+      // Rysuj transakcje
+      if (txData && txData.length > 0) {
+        txData.forEach((tx) => {
+          const openX = scaleX(tx.openTime);
+          const openY = scaleY(tx.openPrice);
+
+          // Rysuj trójkąt dla oznaczenia wejścia (strzałka)
+          const arrowSize = 10;
+          ctx.beginPath();
+          if (tx.type === "BUY" || tx.type === "LONG") {
+            // Strzałka w górę dla BUY/LONG
+            ctx.moveTo(openX, openY + arrowSize);
+            ctx.lineTo(openX - arrowSize, openY + arrowSize * 2);
+            ctx.lineTo(openX + arrowSize, openY + arrowSize * 2);
+          } else {
+            // Strzałka w dół dla SELL/SHORT
+            ctx.moveTo(openX, openY - arrowSize);
+            ctx.lineTo(openX - arrowSize, openY - arrowSize * 2);
+            ctx.lineTo(openX + arrowSize, openY - arrowSize * 2);
+          }
+          ctx.closePath();
+          ctx.fillStyle = "#FFEB3B"; // Żółty
+          ctx.fill();
+          ctx.strokeStyle = "#000000";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Dodaj etykietę ceny
+          ctx.font = "10px Arial";
+          ctx.fillStyle = "#FFFFFF";
+          ctx.textAlign = "center";
+          ctx.fillText(
+            formatPrice(tx.openPrice),
+            openX,
+            tx.type === "BUY"
+              ? openY + arrowSize * 3 + 10
+              : openY - arrowSize * 3 - 5
+          );
+
+          // Jeśli transakcja jest zamknięta, rysuj punkt wyjścia
+          if (tx.closeTime && tx.closePrice) {
+            const closeX = scaleX(tx.closeTime);
+            const closeY = scaleY(tx.closePrice);
+
+            // Rysuj punkt wyjścia
+            ctx.beginPath();
+            ctx.arc(closeX, closeY, 5, 0, 2 * Math.PI);
+            ctx.fillStyle = "#FF9800"; // Pomarańczowy
+            ctx.fill();
+            ctx.strokeStyle = "#000000";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Dodaj etykietę ceny
+            ctx.font = "10px Arial";
+            ctx.fillStyle = "#FFFFFF";
+            ctx.textAlign = "center";
+            ctx.fillText(formatPrice(tx.closePrice), closeX, closeY - 10);
+
+            // Połącz punkty linią
+            ctx.beginPath();
+            ctx.moveTo(openX, openY);
+            ctx.lineTo(closeX, closeY);
+            ctx.strokeStyle =
+              tx.type === "BUY"
+                ? tx.closePrice > tx.openPrice
+                  ? "#4CAF50"
+                  : "#F44336"
+                : tx.closePrice < tx.openPrice
+                ? "#4CAF50"
+                : "#F44336";
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 2]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        });
+      }
+
+      // Rysuj aktualną cenę
+      const lastPrice = candleData[candleData.length - 1].close;
+      const lastPriceY = scaleY(lastPrice);
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.beginPath();
+      ctx.moveTo(marginLeft, lastPriceY);
+      ctx.lineTo(marginLeft + chartWidth, lastPriceY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Tekst z ostatnią ceną
+      ctx.font = "12px Arial";
+      ctx.fillStyle = "#FFFFFF";
+      ctx.textAlign = "left";
+      ctx.fillText(
+        `Cena: ${formatPrice(lastPrice)}`,
+        marginLeft + chartWidth + 5,
+        lastPriceY + 4
+      );
+
+      // Dodaj informacje o parametrach
+      const infoY = canvas.height - 15;
+
+      ctx.font = "10px Arial";
+      ctx.fillStyle = "#AAAAAA";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        `Okres: ${formatDate(candleData[0].jsTime)} - ${formatDate(
+          candleData[candleData.length - 1].jsTime
+        )}`,
+        canvas.width / 2 - marginRight / 2,
+        infoY
+      );
+
+      setLoadingStatus("Wykres narysowany pomyślnie");
+      console.log("Enhanced chart drawn successfully");
+
+      return canvas;
+    } catch (err) {
+      console.error("Error drawing enhanced chart:", err);
+      setLoadingStatus(`Błąd rysowania wykresu: ${err.message}`);
+      return null;
     }
   };
 
-  // Jeśli wykres nie jest aktywny, wyświetl przycisk aktywacji
+  // Główna funkcja inicjalizacji wykresu
+  const initializeChart = async () => {
+    if (!isActive) return;
+
+    setLoading(true);
+    setError(null);
+    setLoadingStatus("Inicjalizacja wykresu...");
+
+    try {
+      // Pobierz parametry
+      const params = getInstanceParams();
+      console.log("Instance parameters:", params);
+
+      setLoadingStatus(
+        `Pobieranie parametrów: ${params.symbol}, Hurst: ${params.hurst.interval} (${params.hurst.periods})`
+      );
+
+      // Krok 1: Pobierz dane świecowe dla kanału Hursta (15m)
+      const hurstCandleData = await fetchCandleData(
+        params.symbol,
+        params.hurst.interval
+      );
+
+      if (!hurstCandleData || hurstCandleData.length === 0) {
+        throw new Error(
+          `Nie udało się pobrać danych świecowych dla ${params.hurst.interval}`
+        );
+      }
+
+      // Krok 2: Oblicz kanał Hursta
+      const hurstChannel = calculateHurstChannel(hurstCandleData, params.hurst);
+
+      // Krok 3: Pobierz dane minutowe dla dokładności
+      setLoadingStatus("Pobieranie dokładnych danych 1m...");
+      let minuteData;
+
+      try {
+        minuteData = await fetchCandleData(params.symbol, "1m");
+      } catch (err) {
+        console.warn(
+          "Could not fetch 1m data, using Hurst interval data instead",
+          err
+        );
+        setLoadingStatus(
+          `Nie udało się pobrać dokładnych danych 1m. Używanie danych ${params.hurst.interval}.`
+        );
+        minuteData = hurstCandleData;
+      }
+
+      // Krok 4: Pobierz dane dla EMA (1h)
+      let emaData = null;
+
+      try {
+        setLoadingStatus(
+          `Pobieranie danych dla EMA (${params.ema.interval})...`
+        );
+        const emaCandleData = await fetchCandleData(
+          params.symbol,
+          params.ema.interval
+        );
+
+        if (emaCandleData && emaCandleData.length > 0) {
+          // Oblicz EMA
+          emaData = calculateEMA(emaCandleData, params.ema.periods);
+        }
+      } catch (err) {
+        console.warn("Could not calculate EMA:", err);
+        setLoadingStatus(`Nie udało się obliczyć EMA. ${err.message}`);
+      }
+
+      // Krok 5: Pobierz dane o transakcjach
+      const txData = await fetchTransactionsForInstance(instance?.id || "demo");
+      setTransactions(txData);
+
+      // Zapisz dane
+      setChartData({
+        candleData: minuteData || hurstCandleData,
+        hurstChannel: hurstChannel,
+        emaData: emaData,
+        transactions: txData,
+      });
+
+      // Krok 6: Narysuj rozbudowany wykres
+      if (chartContainerRef.current) {
+        const canvas = drawEnhancedChart(
+          chartContainerRef.current,
+          minuteData || hurstCandleData,
+          hurstChannel,
+          emaData,
+          txData
+        );
+
+        if (canvas) {
+          chartRef.current = canvas;
+        }
+      } else {
+        throw new Error("Nie znaleziono kontenera dla wykresu");
+      }
+
+      setLoading(false);
+      setLoadingStatus("Wykres załadowany");
+    } catch (err) {
+      console.error("Error initializing chart:", err);
+      setError(err.message);
+      setLoadingStatus(`Błąd: ${err.message}`);
+      setLoading(false);
+    }
+  };
+
+  // Inicjalizacja wykresu po zmianie statusu aktywności
+  useEffect(() => {
+    if (isActive) {
+      initializeChart();
+    }
+
+    return () => {
+      // Czyszczenie przy odmontowaniu
+      if (chartContainerRef.current) {
+        chartContainerRef.current.innerHTML = "";
+      }
+    };
+  }, [isActive, instance]);
+
+  // Renderowanie przycisku aktywacji jeśli wykres jest nieaktywny
   if (!isActive) {
-    console.log("Chart inactive, rendering activation button");
     return (
       <div className="chart-inactive">
-        <button className="activate-chart-btn" onClick={handleToggleClick}>
+        <button className="activate-chart-btn" onClick={onToggle}>
           Pokaż analizę techniczną
         </button>
       </div>
     );
   }
 
-  // Jeśli trwa ładowanie danych
-  if (loading) {
-    console.log("Chart loading, rendering loading state");
-    const progressPercentage =
-      loadingProgress.total > 0
-        ? Math.min(
-            100,
-            Math.round((loadingProgress.loaded / loadingProgress.total) * 100)
-          )
-        : 0;
-
-    return (
-      <div className="chart-container loading">
-        <div className="loader"></div>
-        <p>Ładowanie danych... {progressPercentage}%</p>
-        <div className="progress-bar">
-          <div
-            className="progress-fill"
-            style={{ width: `${progressPercentage}%` }}
-          ></div>
-        </div>
-        <p className="loading-details">
-          Pobieranie danych historycznych dla {instance?.symbol || "BTCUSDT"}
-          <br />
-          To może potrwać chwilę...
-        </p>
-      </div>
-    );
-  }
-
-  // Jeśli wystąpił błąd
+  // Renderowanie błędu
   if (error) {
-    console.log("Chart error:", error);
     return (
       <div className="chart-container error">
         <p>Błąd: {error}</p>
-        <button onClick={handleToggleClick} className="close-btn">
+        <button onClick={onToggle} className="close-btn">
           Zamknij
         </button>
-        <div className="error-details">
-          <p>
-            Sprawdź, czy serwer jest dostępny i czy masz uprawnienia do
-            pobierania danych dla pary {instance?.symbol || "BTCUSDT"}.
-          </p>
-          <p>Możliwe przyczyny błędu:</p>
-          <ul>
-            <li>Serwer API jest niedostępny</li>
-            <li>Token uwierzytelniający wygasł</li>
-            <li>Nieprawidłowa konfiguracja API</li>
-            <li>Symbol {instance?.symbol || "BTCUSDT"} nie jest obsługiwany</li>
-          </ul>
-        </div>
       </div>
     );
   }
 
-  // Jeśli nie ma danych, ale wykres jest aktywny
-  if (combinedData.length === 0) {
-    console.log("Chart active but no data");
-    return (
-      <div className="chart-container empty">
-        <p>Brak danych do wyświetlenia</p>
-        <button onClick={handleToggleClick} className="close-btn">
-          Zamknij
-        </button>
-      </div>
-    );
-  } // Optymalizacja danych dla wykresu (redukcja liczby punktów)
-  const optimizeDataForChart = (data, maxPoints = 2000) => {
-    if (data.length <= maxPoints) return data;
-
-    // Określ zakres czasu
-    const times = data.map((point) => point.time);
-    const minTime = Math.min(...times);
-    const maxTime = Math.max(...times);
-    const timeRange = maxTime - minTime;
-
-    // Podziel zakres czasu na równe przedziały
-    const bucketCount = maxPoints;
-    const bucketSize = timeRange / bucketCount;
-
-    // Utwórz tablicę kubełków (buckets)
-    const buckets = new Array(bucketCount).fill().map(() => []);
-
-    // Przypisz każdy punkt do odpowiedniego kubełka
-    data.forEach((point) => {
-      const bucketIndex = Math.min(
-        bucketCount - 1,
-        Math.floor((point.time - minTime) / bucketSize)
-      );
-      buckets[bucketIndex].push(point);
-    });
-
-    // Wybierz jeden punkt z każdego niepustego kubełka
-    const optimized = [];
-    buckets.forEach((bucket) => {
-      if (bucket.length > 0) {
-        // Wybierz środkowy punkt z kubełka lub punkt z ważnymi wartościami
-        const importantPoints = bucket.filter(
-          (p) =>
-            p.hurstUpper !== undefined ||
-            p.hurstLower !== undefined ||
-            p.ema !== undefined
-        );
-
-        // Jeśli są punkty z ważnymi wartościami, wybierz pierwszy taki punkt
-        if (importantPoints.length > 0) {
-          optimized.push(importantPoints[0]);
-        } else {
-          // W przeciwnym razie wybierz środkowy punkt z kubełka
-          optimized.push(bucket[Math.floor(bucket.length / 2)]);
-        }
-      }
-    });
-
-    // Sortuj dane według czasu
-    optimized.sort((a, b) => a.time - b.time);
-
-    console.log(
-      `Optymalizacja: zredukowano ${data.length} punktów do ${optimized.length}`
-    );
-
-    return optimized;
-  };
-
-  console.log("Rendering full chart with data points:", combinedData.length);
-  const optimizedData = optimizeDataForChart(combinedData);
-  console.log("Optimized to data points:", optimizedData.length);
-
-  const times = optimizedData.map((point) => point.time);
-  const minTime = new Date(Math.min(...times));
-  const maxTime = new Date(Math.max(...times));
-  console.log(
-    `Zakres dat po optymalizacji: ${minTime.toISOString()} do ${maxTime.toISOString()}`
-  );
-  console.log(`Liczba dni: ${(maxTime - minTime) / (1000 * 60 * 60 * 24)}`);
-
+  // Główny widok wykresu
   return (
     <div className="technical-analysis-chart">
       <div className="chart-controls">
         <div className="control-group">
-          <label>
-            <input
-              type="checkbox"
-              checked={showHurst}
-              onChange={() => setShowHurst(!showHurst)}
-            />
-            Kanał Hursta
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={showEMA}
-              onChange={() => setShowEMA(!showEMA)}
-            />
-            EMA
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={showPositions}
-              onChange={() => setShowPositions(!showPositions)}
-            />
-            Pozycje
-          </label>
-        </div>
-        <div className="timeframe-info">
+          <span>Symbol: {getInstanceParams().symbol}</span>
           <span>
-            Cena: {timeframes.price} | Hurst: {timeframes.hurst} | EMA:{" "}
-            {timeframes.ema}
+            Kanał Hursta: {getInstanceParams().hurst.interval} (
+            {getInstanceParams().hurst.periods})
+          </span>
+          <span>
+            EMA: {getInstanceParams().ema.interval} (
+            {getInstanceParams().ema.periods})
           </span>
         </div>
+        <button className="refresh-data-btn" onClick={initializeChart}>
+          Odśwież wykres
+        </button>
       </div>
 
       <div className="chart-wrapper">
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart
-            data={optimizedData}
-            margin={{ top: 5, right: 30, left: 5, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="time"
-              tickFormatter={(time) => {
-                const date = new Date(time);
-                return `${date.getDate()}/${date.getMonth() + 1}`;
-              }}
-              minTickGap={20} // Zmniejszone z 50 na 20
-              scale="time"
-              type="number"
-              domain={["auto", "auto"]} // Zmienione z ["dataMin", "dataMax"] na ["auto", "auto"]
-            />
-            <YAxis
-              domain={["auto", "auto"]}
-              tickFormatter={(value) => `$${value.toFixed(0)}`}
-            />
-            <Tooltip
-              labelFormatter={(time) =>
-                new Date(time).toLocaleDateString() +
-                " " +
-                new Date(time).toLocaleTimeString()
-              }
-              formatter={(value, name) => {
-                if (name === "close") return ["Cena", `$${value.toFixed(2)}`];
-                if (name === "hurstUpper")
-                  return ["Górny Hurst", `$${value.toFixed(2)}`];
-                if (name === "hurstLower")
-                  return ["Dolny Hurst", `$${value.toFixed(2)}`];
-                if (name === "ema") return ["EMA", `$${value.toFixed(2)}`];
-                return [name, value];
-              }}
-            />
-            <Legend />
-
-            {/* Linia ceny */}
-            <Line
-              type="monotone"
-              dataKey="close"
-              stroke="#8884d8"
-              dot={false}
-              name="Cena"
-              isAnimationActive={false}
-              strokeWidth={1.5}
-              connectNulls={true}
-            />
-
-            {/* Górna banda kanału Hursta */}
-            {showHurst && (
-              <Line
-                type="monotone"
-                dataKey="hurstUpper"
-                stroke="#82ca9d"
-                dot={false}
-                strokeDasharray="5 5"
-                name="Górny Hurst"
-                isAnimationActive={false}
-                connectNulls={true}
-              />
-            )}
-
-            {/* Dolna banda kanału Hursta */}
-            {showHurst && (
-              <Line
-                type="monotone"
-                dataKey="hurstLower"
-                stroke="#ff8042"
-                dot={false}
-                strokeDasharray="5 5"
-                name="Dolny Hurst"
-                isAnimationActive={false}
-                connectNulls={true}
-              />
-            )}
-
-            {/* Linia EMA */}
-            {showEMA && (
-              <Line
-                type="monotone"
-                dataKey="ema"
-                stroke="#ffc658"
-                dot={false}
-                name="Trend EMA"
-                isAnimationActive={false}
-                strokeWidth={2}
-                connectNulls={true}
-              />
-            )}
-
-            {/* Renderowanie pozycji handlowych */}
-            {showPositions && renderPositionMarkers()}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="chart-stats">
-        {positions.length > 0 && (
-          <div className="position-stats">
-            <h4>Statystyki pozycji</h4>
-            <p>Liczba sygnałów: {positions.length}</p>
-            <p>
-              Wejścia: {positions.filter((p) => p.type === "entry").length} |
-              Wyjścia: {positions.filter((p) => p.type === "exit").length}
-            </p>
+        {loading && (
+          <div className="chart-overlay-loading">
+            <div className="loader"></div>
+            <p>Ładowanie wykresu: {loadingStatus}</p>
           </div>
         )}
+        <div
+          id="chart-container"
+          ref={chartContainerRef}
+          className="tradingview-chart"
+        ></div>
       </div>
 
       <div className="chart-footer">
-        <div className="chart-info">
-          <span>
-            {instance?.symbol || "BTCUSDT"} | Hurst ({timeframes.hurst}):{" "}
-            {instance?.hurst?.periods || 25} okresów | EMA ({timeframes.ema}):{" "}
-            {instance?.ema?.periods || 30} okresów | Ostatnie 14 dni
-          </span>
-        </div>
-        <button onClick={handleToggleClick} className="hide-chart-btn">
+        <button onClick={onToggle} className="hide-chart-btn">
           Ukryj wykres
         </button>
+        {loadingStatus && !loading && (
+          <div className="status-message">
+            <small>{loadingStatus}</small>
+          </div>
+        )}
       </div>
     </div>
   );
