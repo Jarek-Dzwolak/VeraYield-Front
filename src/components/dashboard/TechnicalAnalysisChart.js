@@ -44,6 +44,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   };
 
   // Pobieranie danych świecowych
+  // Pobieranie danych świecowych
   const fetchCandleData = async (symbol, interval) => {
     try {
       setLoadingStatus(`Pobieranie danych ${interval} dla ${symbol}...`);
@@ -54,13 +55,20 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         throw new Error("Brak tokenu autoryzacyjnego");
       }
 
+      // Ustawiam dokładnie 4 pełne dni wstecz
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 4); // 4 dni wstecz
+      startDate.setDate(endDate.getDate() - 4);
+      startDate.setHours(0, 0, 0, 0); // Ustawiam na początek dnia
 
-      const url = `/api/v1/market/klines/${symbol}/${interval}?startTime=${startDate.getTime()}&endTime=${endDate.getTime()}&limit=1000`;
+      // Ustawiam wyższy limit, żeby na pewno pobrać wszystkie dane
+      const url = `/api/v1/market/klines/${symbol}/${interval}?startTime=${startDate.getTime()}&endTime=${endDate.getTime()}&limit=5000`;
+      console.log(
+        `Pobieranie danych dla zakresu: ${new Date(
+          startDate
+        ).toLocaleString()} - ${new Date(endDate).toLocaleString()}`
+      );
       console.log(`Fetching ${interval} data from:`, url);
-
       const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -122,7 +130,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     }
   };
 
-  // Pobieranie transakcji dla instancji
+  // Pobieranie transakcji dla instancji - POPRAWIONE
   const fetchTransactionsForInstance = async (instanceId) => {
     try {
       setLoadingStatus("Pobieranie historii transakcji...");
@@ -133,9 +141,9 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         throw new Error("Brak tokenu autoryzacyjnego");
       }
 
-      // URL do API transakcji - dostosuj według rzeczywistego API
-      const url = `/api/v1/transactions?instanceId=${instanceId}&limit=100`;
-      console.log(`Fetching transactions from:`, url);
+      // Poprawny endpoint na podstawie dokumentacji
+      const url = `/api/v1/signals/instance/${instanceId}`;
+      console.log(`Fetching signals from:`, url);
 
       try {
         const response = await fetch(url, {
@@ -146,35 +154,47 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         });
 
         if (!response.ok) {
-          console.warn(
-            `HTTP error ${response.status} when fetching transactions`
-          );
+          console.warn(`HTTP error ${response.status} when fetching signals`);
           // Jeśli nie udało się pobrać - wygeneruj testowe dane
           return generateTestTransactions();
         }
 
-        const data = await response.json();
+        const signals = await response.json();
 
-        if (!data || !Array.isArray(data)) {
-          console.warn("Invalid transactions data format");
+        if (!signals || !Array.isArray(signals)) {
+          console.warn("Invalid signals data format");
           return generateTestTransactions();
         }
 
-        // Mapuj dane do formatu używanego przez wykres
-        const mappedTransactions = data.map((tx) => ({
-          id: tx.id,
-          openTime: new Date(tx.openTime).getTime(),
-          closeTime: tx.closeTime ? new Date(tx.closeTime).getTime() : null,
-          type: tx.type || tx.direction, // BUY/SELL lub LONG/SHORT
-          openPrice: parseFloat(tx.openPrice),
-          closePrice: tx.closePrice ? parseFloat(tx.closePrice) : null,
-          status: tx.status, // OPEN/CLOSED
-        }));
+        // Przetwórz sygnały wejścia i wyjścia na transakcje
+        const entrySignals = signals.filter(
+          (signal) => signal.type === "entry"
+        );
+        const exitSignals = signals.filter((signal) => signal.type === "exit");
 
-        console.log("Transactions loaded:", mappedTransactions);
+        // Mapuj dane do formatu używanego przez wykres
+        const mappedTransactions = entrySignals.map((entry) => {
+          // Znajdź odpowiadający sygnał wyjścia, jeśli istnieje
+          const exit = exitSignals.find(
+            (exit) => exit.entrySignalId === entry._id
+          );
+
+          return {
+            id: entry._id,
+            openTime: entry.timestamp,
+            closeTime: exit ? exit.timestamp : null,
+            type: entry.subType === "buy" ? "BUY" : "SELL",
+            openPrice: entry.price,
+            closePrice: exit ? exit.price : null,
+            status: exit ? "CLOSED" : "OPEN",
+            metadata: entry.metadata || {},
+          };
+        });
+
+        console.log("Transactions processed from signals:", mappedTransactions);
         return mappedTransactions;
       } catch (err) {
-        console.warn("Error fetching transactions:", err);
+        console.warn("Error fetching signals:", err);
         // Fallback do testowych danych
         return generateTestTransactions();
       }
@@ -400,7 +420,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     // Użyj aktualnej ceny jako punktu odniesienia
     const lastPrice = data[data.length - 1].close;
 
-    // Ustaw zakres jako +/- 5% aktualnej ceny
+    // Ustaw zakres jako +/- 1% aktualnej ceny
     const range = lastPrice * 0.01;
     let minPrice = lastPrice - range;
     let maxPrice = lastPrice + range;
@@ -444,6 +464,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
     return { min: minPrice, max: maxPrice };
   };
+
   // Funkcja inicjalizująca rozbudowany wykres Canvas
   const drawEnhancedChart = (
     container,
@@ -454,6 +475,20 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   ) => {
     try {
       setLoadingStatus("Rysowanie wykresu...");
+
+      // Sprawdzanie pełnego zakresu danych
+      if (candleData && candleData.length > 0) {
+        const firstDate = new Date(candleData[0].jsTime);
+        const lastDate = new Date(candleData[candleData.length - 1].jsTime);
+        const daysDiff = (lastDate - firstDate) / (1000 * 60 * 60 * 24);
+
+        console.log(
+          `Dane obejmują ${daysDiff.toFixed(
+            2
+          )} dni: ${firstDate.toLocaleString()} - ${lastDate.toLocaleString()}`
+        );
+        console.log(`Liczba świec: ${candleData.length}`);
+      }
 
       // Wyczyść kontener
       container.innerHTML = "";
@@ -768,85 +803,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         );
       });
 
-      // Rysuj transakcje
-      if (txData && txData.length > 0) {
-        txData.forEach((tx) => {
-          const openX = scaleX(tx.openTime);
-          const openY = scaleY(tx.openPrice);
-
-          // Rysuj trójkąt dla oznaczenia wejścia (strzałka)
-          const arrowSize = 10;
-          ctx.beginPath();
-          if (tx.type === "BUY" || tx.type === "LONG") {
-            // Strzałka w górę dla BUY/LONG
-            ctx.moveTo(openX, openY + arrowSize);
-            ctx.lineTo(openX - arrowSize, openY + arrowSize * 2);
-            ctx.lineTo(openX + arrowSize, openY + arrowSize * 2);
-          } else {
-            // Strzałka w dół dla SELL/SHORT
-            ctx.moveTo(openX, openY - arrowSize);
-            ctx.lineTo(openX - arrowSize, openY - arrowSize * 2);
-            ctx.lineTo(openX + arrowSize, openY - arrowSize * 2);
-          }
-          ctx.closePath();
-          ctx.fillStyle = "#FFEB3B"; // Żółty
-          ctx.fill();
-          ctx.strokeStyle = "#000000";
-          ctx.lineWidth = 1;
-          ctx.stroke();
-
-          // Dodaj etykietę ceny
-          ctx.font = "10px Arial";
-          ctx.fillStyle = "#FFFFFF";
-          ctx.textAlign = "center";
-          ctx.fillText(
-            formatPrice(tx.openPrice),
-            openX,
-            tx.type === "BUY"
-              ? openY + arrowSize * 3 + 10
-              : openY - arrowSize * 3 - 5
-          );
-
-          // Jeśli transakcja jest zamknięta, rysuj punkt wyjścia
-          if (tx.closeTime && tx.closePrice) {
-            const closeX = scaleX(tx.closeTime);
-            const closeY = scaleY(tx.closePrice);
-
-            // Rysuj punkt wyjścia
-            ctx.beginPath();
-            ctx.arc(closeX, closeY, 5, 0, 2 * Math.PI);
-            ctx.fillStyle = "#FF9800"; // Pomarańczowy
-            ctx.fill();
-            ctx.strokeStyle = "#000000";
-            ctx.lineWidth = 1;
-            ctx.stroke();
-
-            // Dodaj etykietę ceny
-            ctx.font = "10px Arial";
-            ctx.fillStyle = "#FFFFFF";
-            ctx.textAlign = "center";
-            ctx.fillText(formatPrice(tx.closePrice), closeX, closeY - 10);
-
-            // Połącz punkty linią
-            ctx.beginPath();
-            ctx.moveTo(openX, openY);
-            ctx.lineTo(closeX, closeY);
-            ctx.strokeStyle =
-              tx.type === "BUY"
-                ? tx.closePrice > tx.openPrice
-                  ? "#4CAF50"
-                  : "#F44336"
-                : tx.closePrice < tx.openPrice
-                ? "#4CAF50"
-                : "#F44336";
-            ctx.lineWidth = 1;
-            ctx.setLineDash([3, 2]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-          }
-        });
-      }
-
       // Rysuj aktualną cenę
       const lastPrice = candleData[candleData.length - 1].close;
       const lastPriceY = scaleY(lastPrice);
@@ -869,6 +825,91 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         marginLeft + chartWidth + 5,
         lastPriceY + 4
       );
+
+      // Rysuj transakcje - POPRAWIONE (precyzyjnie na linii ceny)
+      if (txData && txData.length > 0) {
+        txData.forEach((tx) => {
+          const openX = scaleX(tx.openTime);
+          const openY = scaleY(tx.openPrice);
+
+          // 1. Rysuj pionową linię referencyjną
+          ctx.setLineDash([2, 2]);
+          ctx.strokeStyle = "#FFEB3B"; // Żółty
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(openX, marginTop);
+          ctx.lineTo(openX, marginTop + chartHeight);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // 2. Rysuj marker dokładnie na linii ceny
+          const markerSize = 8;
+          ctx.beginPath();
+          ctx.arc(openX, openY, markerSize, 0, 2 * Math.PI);
+          ctx.fillStyle =
+            tx.type === "BUY"
+              ? "rgba(76, 175, 80, 0.8)"
+              : "rgba(244, 67, 54, 0.8)";
+          ctx.fill();
+          ctx.strokeStyle = "#FFFFFF";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Dodaj etykietę ceny (nieco odsunięta)
+          ctx.font = "bold 11px Arial";
+          ctx.fillStyle = "#FFFFFF";
+          ctx.textAlign = "center";
+          ctx.fillText(formatPrice(tx.openPrice), openX + 20, openY);
+
+          // Jeśli transakcja jest zamknięta, rysuj punkt wyjścia
+          if (tx.closeTime && tx.closePrice) {
+            const closeX = scaleX(tx.closeTime);
+            const closeY = scaleY(tx.closePrice);
+
+            // Pionowa linia referencyjna dla wyjścia
+            ctx.setLineDash([2, 2]);
+            ctx.strokeStyle = "#FF9800"; // Pomarańczowy
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(closeX, marginTop);
+            ctx.lineTo(closeX, marginTop + chartHeight);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Rysuj punkt wyjścia na linii ceny
+            ctx.beginPath();
+            ctx.arc(closeX, closeY, markerSize, 0, 2 * Math.PI);
+            ctx.fillStyle = "#FF9800"; // Pomarańczowy
+            ctx.fill();
+            ctx.strokeStyle = "#FFFFFF";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Dodaj etykietę ceny
+            ctx.font = "bold 11px Arial";
+            ctx.fillStyle = "#FFFFFF";
+            ctx.textAlign = "center";
+            ctx.fillText(formatPrice(tx.closePrice), closeX - 20, closeY);
+
+            // Połącz punkty linią
+            ctx.beginPath();
+            ctx.moveTo(openX, openY);
+            ctx.lineTo(closeX, closeY);
+            ctx.strokeStyle =
+              tx.type === "BUY"
+                ? tx.closePrice > tx.openPrice
+                  ? "#4CAF50"
+                  : "#F44336"
+                : tx.closePrice < tx.openPrice
+                ? "#4CAF50"
+                : "#F44336";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        });
+      }
 
       // Dodaj informacje o parametrach
       const infoY = canvas.height - 15;
