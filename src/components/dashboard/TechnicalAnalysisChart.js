@@ -17,8 +17,11 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState("");
+  // eslint-disable-next-line no-unused-vars
   const [priceData, setPriceData] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [data15m, setData15m] = useState([]);
+  // eslint-disable-next-line no-unused-vars
   const [data1h, setData1h] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [combinedData, setCombinedData] = useState([]);
@@ -942,7 +945,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     }
   };
 
-  // Inicjalizacja wykresu po zmianie statusu aktywności
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     if (isActive) {
       initializeChart();
@@ -953,7 +956,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       // Żadnych operacji czyszczenia nie jest potrzebnych dla Recharts
     };
   }, [isActive, instance]);
-
+  /* eslint-enable react-hooks/exhaustive-deps */
   // Renderowanie przycisku aktywacji jeśli wykres jest nieaktywny
   if (!isActive) {
     return (

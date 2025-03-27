@@ -64,8 +64,8 @@ const InstanceOverview = ({ onSelectInstance }) => {
     };
 
     fetchInstances();
-
     // Usuń selectedInstance z listy zależności, aby uniknąć nieskończonej pętli
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Pusta tablica zależności - uruchom useEffect tylko raz przy montowaniu
 
   const handleInstanceSelect = (instance) => {

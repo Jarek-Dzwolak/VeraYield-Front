@@ -265,7 +265,7 @@ const CreateInstanceForm = () => {
           errorData.message || "Błąd podczas tworzenia instancji"
         );
       }
-
+      // eslint-disable-next-line no-unused-vars
       const data = await response.json();
       setSuccessMessage(
         `Instancja "${newInstance.name}" została utworzona pomyślnie!`
