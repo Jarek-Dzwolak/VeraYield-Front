@@ -5,6 +5,7 @@
   border-radius: 8px;
   overflow: hidden;
   position: relative;
+  background-color: #000000;
 }
 
 .chart-inactive {
@@ -17,7 +18,9 @@
 
 .activate-chart-btn,
 .hide-chart-btn,
-.refresh-data-btn {
+.refresh-data-btn,
+.close-btn,
+.full-range-btn {
   padding: 8px 16px;
   background-color: #2196f3;
   color: white;
@@ -26,6 +29,30 @@
   cursor: pointer;
   font-weight: bold;
   margin: 0 5px;
+  transition: background-color 0.2s;
+}
+
+.activate-chart-btn:hover,
+.hide-chart-btn:hover,
+.refresh-data-btn:hover,
+.full-range-btn:hover {
+  background-color: #0b7dda;
+}
+
+.full-range-btn {
+  background-color: #673ab7;
+}
+
+.full-range-btn:hover {
+  background-color: #5e35b1;
+}
+
+.close-btn {
+  background-color: #f44336;
+}
+
+.close-btn:hover {
+  background-color: #d32f2f;
 }
 
 .chart-overlay-loading {
@@ -72,10 +99,22 @@
 .chart-controls {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 10px;
   padding: 10px;
   background-color: #30363d;
   border-radius: 4px;
+}
+
+.control-group {
+  display: flex;
+  gap: 20px;
+}
+
+.control-group span {
+  font-size: 14px;
+  color: #e1e1e1;
+  font-weight: 500;
 }
 
 .chart-wrapper {
@@ -84,6 +123,81 @@
 
 .chart-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   margin-top: 10px;
+}
+
+.status-message {
+  color: #aaaaaa;
+  font-size: 12px;
+}
+
+.technical-analysis-chart {
+  padding: 10px 0;
+}
+
+.no-data-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #aaaaaa;
+  font-size: 16px;
+  text-align: center;
+}
+
+/* Dopasowanie stylów dla Recharts */
+.recharts-default-tooltip {
+  background-color: #1e1e1e !important;
+  border: 1px solid #30363d !important;
+  border-radius: 4px !important;
+  color: white !important;
+}
+
+.recharts-tooltip-label {
+  margin-bottom: 5px !important;
+  color: #2196f3 !important;
+  font-weight: bold !important;
+}
+
+.recharts-tooltip-item {
+  color: white !important;
+}
+
+.recharts-cartesian-axis-line,
+.recharts-cartesian-axis-tick-line {
+  stroke: #555 !important;
+}
+
+.recharts-legend-item-text {
+  color: #e1e1e1 !important;
+}
+
+.recharts-reference-line-label {
+  font-weight: bold !important;
+}
+
+.recharts-layer.recharts-cartesian-axis-tick text {
+  fill: #aaa !important;
+}
+
+/* Style dla suwaka (Brush) */
+.recharts-brush-texts {
+  font-size: 12px !important;
+  fill: #aaa !important;
+}
+
+.recharts-brush-slide {
+  fill: #2196f3 !important;
+  fill-opacity: 0.3 !important;
+}
+
+.recharts-brush rect {
+  stroke: #555 !important;
+}
+
+.recharts-brush-traveller {
+  fill: #30363d !important;
+  stroke: #2196f3 !important;
 }
