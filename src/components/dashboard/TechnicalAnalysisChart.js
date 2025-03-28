@@ -13,6 +13,8 @@ import {
 } from "recharts";
 import "./TechnicalAnalysisChart.css";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "/api/v1";
+
 const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -70,7 +72,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         throw new Error("Brak tokenu autoryzacyjnego");
       }
 
-      const url = `/api/v1/market/klines/${symbol}/${interval}?startTime=${startDate.getTime()}&endTime=${endDate.getTime()}&limit=1000`;
+      const url = `${API_BASE_URL}/market/klines/${symbol}/${interval}?startTime=${startDate.getTime()}&endTime=${endDate.getTime()}&limit=1000`;
       console.log(
         `Pobieranie danych dla zakresu: ${startDate.toLocaleString()} - ${endDate.toLocaleString()}`
       );
@@ -466,7 +468,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         throw new Error("Brak tokenu autoryzacyjnego");
       }
 
-      const url = `/api/v1/signals/instance/${instanceId}`;
+      const url = `${API_BASE_URL}/signals/instance/${instanceId}`;
       console.log(`Fetching signals from:`, url);
 
       try {

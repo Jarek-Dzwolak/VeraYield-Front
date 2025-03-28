@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "./InstanceManager.css";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "/api/v1";
+
 const InstanceManager = () => {
   const [instances, setInstances] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,7 +25,7 @@ const InstanceManager = () => {
         throw new Error("Brak autoryzacji");
       }
 
-      const response = await fetch("/api/v1/instances", {
+      const response = await fetch(`${API_BASE_URL}/instances`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -66,7 +68,7 @@ const InstanceManager = () => {
         throw new Error("Brak autoryzacji");
       }
 
-      const response = await fetch(`/api/v1/instances/${instanceId}`, {
+      const response = await fetch(`${API_BASE_URL}/instances/${instanceId}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -111,13 +113,16 @@ const InstanceManager = () => {
         throw new Error("Brak autoryzacji");
       }
 
-      const response = await fetch(`/api/v1/instances/${instanceId}/stop`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/instances/${instanceId}/stop`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -157,13 +162,16 @@ const InstanceManager = () => {
         throw new Error("Brak autoryzacji");
       }
 
-      const response = await fetch(`/api/v1/instances/${instanceId}/start`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/instances/${instanceId}/start`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();

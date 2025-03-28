@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import "./CreateInstanceForm.css";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "/api/v1";
+
 const CreateInstanceForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -250,7 +252,7 @@ const CreateInstanceForm = () => {
         JSON.stringify(dataToSend, null, 2)
       );
 
-      const response = await fetch("/api/v1/instances", {
+      const response = await fetch(`${API_BASE_URL}/instances`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

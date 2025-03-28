@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "./InstanceOverview.css";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "/api/v1";
+
 const InstanceOverview = ({ onSelectInstance }) => {
   const [instances, setInstances] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,7 +20,7 @@ const InstanceOverview = ({ onSelectInstance }) => {
           throw new Error("Brak autoryzacji");
         }
 
-        const response = await fetch("/api/v1/instances/active", {
+        const response = await fetch(`${API_BASE_URL}/instances/active`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

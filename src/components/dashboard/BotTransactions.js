@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "./BotTransactions.css";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "/api/v1";
+
 const BotTransactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [activeInstances, setActiveInstances] = useState([]);
@@ -19,7 +21,7 @@ const BotTransactions = () => {
           return;
         }
 
-        const response = await fetch("/api/v1/instances/active", {
+        const response = await fetch(`${API_BASE_URL}/instances/active`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -68,11 +70,14 @@ const BotTransactions = () => {
       const instanceId = instance.instanceId || instance._id;
 
       // Pobierz dane o pozycjach z API
-      const response = await fetch(`/api/v1/signals/positions/history`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/signals/positions/history`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Nie udało się pobrać danych transakcji");

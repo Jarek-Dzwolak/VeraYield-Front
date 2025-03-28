@@ -4,6 +4,7 @@ import "./Navbar.css";
 import logo from "../../assets/img/LogoSolo.jpeg";
 import { FiPower } from "react-icons/fi"; //
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "/api/v1";
 const Navbar = ({ onLogout }) => {
   const location = useLocation();
   const [user, setUser] = useState(null);
@@ -20,7 +21,7 @@ const Navbar = ({ onLogout }) => {
       }
 
       try {
-        const response = await fetch("/api/v1/auth/profile", {
+        const response = await fetch(`${API_BASE_URL}/auth/profile`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -51,7 +52,7 @@ const Navbar = ({ onLogout }) => {
 
       if (token) {
         // Wywołaj endpoint wylogowania
-        await fetch("/api/v1/auth/logout", {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,

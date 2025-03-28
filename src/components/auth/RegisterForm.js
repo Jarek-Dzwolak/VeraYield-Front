@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "./AuthForms.css";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "/api/v1";
 const RegisterForm = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -59,7 +60,7 @@ const RegisterForm = () => {
     setRegisterError("");
 
     try {
-      const response = await fetch("/api/v1/auth/register", {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

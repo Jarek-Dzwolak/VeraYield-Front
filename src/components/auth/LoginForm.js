@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import "./AuthForms.css";
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "/api/v1";
+
 const LoginForm = ({ onLogin }) => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -45,7 +47,7 @@ const LoginForm = ({ onLogin }) => {
     setLoginError("");
 
     try {
-      const response = await fetch("/api/v1/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
