@@ -130,6 +130,21 @@ const BotTransactions = () => {
     return parseFloat(number).toFixed(2);
   };
 
+  // Obliczanie procentowego zysku, jeśli nie jest dostępny bezpośrednio
+  const calculateProfitPercent = (tx) => {
+    // Jeśli profitPercent jest już dostępny w danych
+    if (tx.profitPercent !== undefined && tx.profitPercent !== null) {
+      return tx.profitPercent;
+    }
+
+    // Jeśli mamy dostępny zysk i kwotę kapitału, obliczamy procent
+    if (tx.profit && tx.capitalAmount && tx.capitalAmount !== 0) {
+      return (tx.profit / tx.capitalAmount) * 100;
+    }
+
+    return null;
+  };
+
   if (isLoading) {
     return (
       <div className="bot-transactions card">
@@ -201,6 +216,7 @@ const BotTransactions = () => {
               <span>Czas otwarcia</span>
               <span>Czas zamknięcia</span>
               <span>Zysk</span>
+              <span>% Zysku</span>
               <span>Status</span>
             </div>
 
@@ -215,6 +231,7 @@ const BotTransactions = () => {
                   const exitTime = tx.exitTime
                     ? formatDateTime(tx.exitTime)
                     : null;
+                  const profitPercent = calculateProfitPercent(tx);
 
                   return (
                     <div
@@ -265,6 +282,21 @@ const BotTransactions = () => {
                           ? `${tx.profit > 0 ? "+" : ""}${formatNumber(
                               tx.profit
                             )} USDT`
+                          : "-"}
+                      </span>
+                      <span
+                        className={`tx-profit-percent ${
+                          profitPercent > 0
+                            ? "profit"
+                            : profitPercent < 0
+                            ? "loss"
+                            : ""
+                        }`}
+                      >
+                        {profitPercent !== null
+                          ? `${profitPercent > 0 ? "+" : ""}${formatNumber(
+                              profitPercent
+                            )}%`
                           : "-"}
                       </span>
                       <span className={`tx-status ${tx.status}`}>

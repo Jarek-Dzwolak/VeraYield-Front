@@ -33,12 +33,12 @@
 }
 
 .table-fixed-width {
-  min-width: 800px; /* Ustaw minimalną szerokość dla lepszej responsywności na mobile */
+  min-width: 900px; /* Zwiększona minimalna szerokość dla dodatkowej kolumny */
 }
 
 .table-header {
   display: grid;
-  grid-template-columns: 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 1fr 1fr 0.8fr 0.8fr;
+  grid-template-columns: 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 1fr 1fr 0.8fr 0.8fr 0.8fr;
   padding: 0.8rem 0.5rem;
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 6px;
@@ -58,7 +58,7 @@
 
 .transaction-row {
   display: grid;
-  grid-template-columns: 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 1fr 1fr 0.8fr 0.8fr;
+  grid-template-columns: 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 1fr 1fr 0.8fr 0.8fr 0.8fr;
   padding: 0.6rem 0.5rem;
   border-radius: 6px;
   font-size: 0.85rem;
@@ -101,15 +101,18 @@
   font-size: 0.75rem;
 }
 
-.tx-profit {
+.tx-profit,
+.tx-profit-percent {
   font-weight: 600;
 }
 
-.tx-profit.profit {
+.tx-profit.profit,
+.tx-profit-percent.profit {
   color: var(--green);
 }
 
-.tx-profit.loss {
+.tx-profit.loss,
+.tx-profit-percent.loss {
   color: var(--red);
 }
 
