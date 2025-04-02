@@ -13,7 +13,8 @@ const CreateInstanceForm = () => {
   const [newInstance, setNewInstance] = useState({
     name: "",
     symbol: "BTCUSDT",
-    testMode: true, // Dodajemy to pole, aby aktywować tryb testowy
+    testMode: true,
+    initialFunds: 10000, // Dodane pole: początkowe środki
     strategy: {
       type: "hurst",
       parameters: {
@@ -44,10 +45,22 @@ const CreateInstanceForm = () => {
   // Handlery do aktualizacji różnych części stanu
   const handleBasicInfoChange = (e) => {
     const { name, value } = e.target;
-    setNewInstance((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+
+    // Dla pola initialFunds, konwertujemy na liczbę
+    if (name === "initialFunds") {
+      const numValue = parseInt(value, 10);
+      if (!isNaN(numValue) && numValue >= 0) {
+        setNewInstance((prev) => ({
+          ...prev,
+          [name]: numValue,
+        }));
+      }
+    } else {
+      setNewInstance((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleHurstChange = (e) => {
@@ -246,7 +259,6 @@ const CreateInstanceForm = () => {
       }
 
       // Logowanie danych przed wysłaniem dla celów debugowania
-      // Logowanie danych przed wysłaniem dla celów debugowania
       console.log(
         "Wysyłanie danych instancji:",
         JSON.stringify(dataToSend, null, 2)
@@ -278,6 +290,7 @@ const CreateInstanceForm = () => {
         name: "",
         symbol: "BTCUSDT",
         testMode: true,
+        initialFunds: 10000,
         strategy: {
           type: "hurst",
           parameters: {
@@ -398,9 +411,26 @@ const CreateInstanceForm = () => {
               </select>
             </div>
 
+            {/* Nowe pole dla początkowych środków */}
+            <div className="form-group">
+              <label htmlFor="initialFunds">Początkowe środki:</label>
+              <input
+                type="number"
+                id="initialFunds"
+                name="initialFunds"
+                value={newInstance.initialFunds}
+                onChange={handleBasicInfoChange}
+                min="100"
+                step="100"
+              />
+              <div className="field-description">
+                Kwota przydzielana instancji na początku testów (np. 10000)
+              </div>
+            </div>
+
             <p className="section-description">
-              Wybierz unikalną nazwę dla Twojej instancji oraz parę handlową, na
-              której będzie działać bot.
+              Wybierz unikalną nazwę dla Twojej instancji, parę handlową oraz
+              początkową kwotę środków na testowanie strategii.
             </p>
           </div>
         )}
