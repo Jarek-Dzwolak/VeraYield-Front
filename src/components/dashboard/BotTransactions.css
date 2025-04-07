@@ -33,7 +33,7 @@
 }
 
 .table-fixed-width {
-  min-width: 900px; /* Zwiększona minimalna szerokość dla dodatkowej kolumny */
+  min-width: 1000px; /* Zwiększona minimalna szerokość dla dodatkowej kolumny */
 }
 
 /* Style dla starej wersji grid-based */
@@ -76,7 +76,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
-  min-width: 900px;
+  min-width: 1000px;
 }
 
 .transactions-table th,
@@ -230,7 +230,8 @@
   white-space: nowrap;
 }
 
-.transactions-table tbody td.avg-price {
+.transactions-table tbody td.avg-price,
+.transactions-table tbody td.exit-price {
   font-weight: 600;
   white-space: nowrap;
 }

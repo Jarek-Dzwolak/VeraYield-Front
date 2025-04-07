@@ -256,6 +256,7 @@ const BotTransactions = () => {
                 <th>Drugie wejście</th>
                 <th>Trzecie wejście</th>
                 <th>Średnia cena</th>
+                <th>Cena zamknięcia</th>
                 <th>Zysk %</th>
                 <th>Czas otwarcia</th>
                 <th>Czas zamknięcia</th>
@@ -264,7 +265,7 @@ const BotTransactions = () => {
             <tbody>
               {transactions.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="no-transactions">
+                  <td colSpan="9" className="no-transactions">
                     Brak transakcji dla wybranej instancji
                   </td>
                 </tr>
@@ -276,10 +277,15 @@ const BotTransactions = () => {
                     }
                   >
                     <td>{tx.symbol}</td>
-                    <td>{formatEntryData(tx.entry1)}</td>
-                    <td>{formatEntryData(tx.entry2)}</td>
-                    <td>{formatEntryData(tx.entry3)}</td>
-                    <td>${formatNumber(tx.averageEntryPrice)}</td>
+                    <td className="entry-data">{formatEntryData(tx.entry1)}</td>
+                    <td className="entry-data">{formatEntryData(tx.entry2)}</td>
+                    <td className="entry-data">{formatEntryData(tx.entry3)}</td>
+                    <td className="avg-price">
+                      ${formatNumber(tx.averageEntryPrice)}
+                    </td>
+                    <td className="exit-price">
+                      ${formatNumber(tx.exitPrice)}
+                    </td>
                     <td
                       className={
                         tx.profitPercent > 0
@@ -296,8 +302,8 @@ const BotTransactions = () => {
                           )}%`
                         : "-"}
                     </td>
-                    <td>{formatDateTime(tx.entryTime)}</td>
-                    <td>{formatDateTime(tx.exitTime)}</td>
+                    <td className="datetime">{formatDateTime(tx.entryTime)}</td>
+                    <td className="datetime">{formatDateTime(tx.exitTime)}</td>
                   </tr>
                 ))
               )}
