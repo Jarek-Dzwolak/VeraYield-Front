@@ -71,7 +71,7 @@ const BotTransactions = () => {
 
       // Pobierz dane o pozycjach z API
       const response = await fetch(
-        `${API_BASE_URL}/signals/positions/history`,
+        `${API_BASE_URL}/signals/positions/history?instanceId=${instanceId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -86,14 +86,16 @@ const BotTransactions = () => {
       const data = await response.json();
 
       // Sprawdź, czy dane są w odpowiednim formacie
-      if (!data || !Array.isArray(data)) {
-        setTransactions([]);
+      if (!data || !Array.isArray(data.history)) {
+        // Dostosowanie do nowego API, które zwraca obiekt z historią
+        if (data && Array.isArray(data)) {
+          setTransactions(data);
+        } else {
+          setTransactions([]);
+        }
       } else {
-        // Filtruj transakcje tylko dla wybranej instancji
-        const filteredTransactions = data.filter(
-          (tx) => tx.instanceId === instanceId
-        );
-        setTransactions(filteredTransactions);
+        // Stary format zwracany przez API
+        setTransactions(data.history);
       }
 
       setIsLoading(false);
@@ -130,16 +132,34 @@ const BotTransactions = () => {
     return parseFloat(number).toFixed(2);
   };
 
-  // Obliczanie procentowego zysku, jeśli nie jest dostępny bezpośrednio
+  // Obliczanie całkowitej kwoty wejścia z wielu transakcji
+  const calculateTotalEntryAmount = (tx) => {
+    // Jeśli mamy już gotową wartość, używamy jej
+    if (tx.capitalAmount !== undefined && tx.capitalAmount !== null) {
+      return tx.capitalAmount;
+    }
+
+    // Jeśli nie, próbujemy obliczyć z entries
+    if (tx.entries && tx.entries.length > 0) {
+      return tx.entries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
+    }
+
+    return null;
+  };
+
+  // Obliczanie procentowego zysku
   const calculateProfitPercent = (tx) => {
     // Jeśli profitPercent jest już dostępny w danych
     if (tx.profitPercent !== undefined && tx.profitPercent !== null) {
       return tx.profitPercent;
     }
 
+    // Oblicz całkowitą kwotę wejścia
+    const totalEntryAmount = calculateTotalEntryAmount(tx);
+
     // Jeśli mamy dostępny zysk i kwotę kapitału, obliczamy procent
-    if (tx.profit && tx.capitalAmount && tx.capitalAmount !== 0) {
-      return (tx.profit / tx.capitalAmount) * 100;
+    if (tx.profit && totalEntryAmount && totalEntryAmount !== 0) {
+      return (tx.profit / totalEntryAmount) * 100;
     }
 
     return null;
@@ -232,10 +252,16 @@ const BotTransactions = () => {
                     ? formatDateTime(tx.exitTime)
                     : null;
                   const profitPercent = calculateProfitPercent(tx);
+                  const totalEntryAmount = calculateTotalEntryAmount(tx);
 
                   return (
                     <div
-                      key={tx._id || tx.id || `tx-${Math.random()}`}
+                      key={
+                        tx._id ||
+                        tx.id ||
+                        tx.positionId ||
+                        `tx-${Math.random()}`
+                      }
                       className="transaction-row"
                     >
                       <span
@@ -246,12 +272,13 @@ const BotTransactions = () => {
                         {tx.status === "closed" ? "ZAMKNIĘTA" : "OTWARTA"}
                       </span>
                       <span className="tx-pair">
-                        {selectedInstance
-                          ? selectedInstance.symbol
-                          : "BTC/USDT"}
+                        {tx.symbol ||
+                          (selectedInstance
+                            ? selectedInstance.symbol
+                            : "BTC/USDT")}
                       </span>
                       <span className="tx-amount">
-                        {formatNumber(tx.capitalAmount)} USDT
+                        {formatNumber(totalEntryAmount)} USDT
                       </span>
                       <span className="tx-price">
                         ${formatNumber(tx.entryPrice)}

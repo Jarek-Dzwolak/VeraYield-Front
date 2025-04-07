@@ -459,6 +459,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   };
 
   // Pobieranie rzeczywistych transakcji
+  // Pobieranie rzeczywistych transakcji
   const fetchTransactions = async (instanceId) => {
     try {
       setLoadingStatus("Pobieranie historii transakcji...");
@@ -468,57 +469,75 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         throw new Error("Brak tokenu autoryzacyjnego");
       }
 
-      const url = `${API_BASE_URL}/signals/instance/${instanceId}`;
-      console.log(`Fetching signals from:`, url);
+      // Najpierw spróbujmy pobrać dane z historii pozycji (zamknięte pozycje)
+      const positionsUrl = `${API_BASE_URL}/signals/positions/history?instanceId=${instanceId}`;
+      console.log(`Fetching position history from:`, positionsUrl);
 
       try {
-        const response = await fetch(url, {
+        const positionsResponse = await fetch(positionsUrl, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
 
-        if (!response.ok) {
-          console.warn(`HTTP error ${response.status} when fetching signals`);
+        if (!positionsResponse.ok) {
+          console.warn(
+            `HTTP error ${positionsResponse.status} when fetching positions`
+          );
           return []; // Zwracamy pustą tablicę zamiast generowania przykładowych danych
         }
 
-        const signals = await response.json();
+        const positionsData = await positionsResponse.json();
 
-        if (!signals || !Array.isArray(signals)) {
-          console.warn("Invalid signals data format");
+        // Obsługa obu formatów API (tablica lub obiekt z tablicą history)
+        const positions = Array.isArray(positionsData)
+          ? positionsData
+          : positionsData.history
+          ? positionsData.history
+          : [];
+
+        if (!positions || positions.length === 0) {
+          console.warn("No position history data found");
           return [];
         }
 
-        // Przetwórz sygnały wejścia i wyjścia na transakcje
-        const entrySignals = signals.filter(
-          (signal) => signal.type === "entry"
-        );
-        const exitSignals = signals.filter((signal) => signal.type === "exit");
-
-        // Mapuj dane do formatu używanego przez wykres
-        const mappedTransactions = entrySignals.map((entry) => {
-          // Znajdź odpowiadający sygnał wyjścia, jeśli istnieje
-          const exit = exitSignals.find(
-            (exit) => exit.entrySignalId === entry._id
-          );
+        // Mapuj pozycje na format wykresu
+        const mappedTransactions = positions.map((position) => {
+          // Oblicz średnią cenę wejścia, jeśli nie jest dostępna bezpośrednio
+          let entryPrice = position.entryPrice;
+          if (!entryPrice && position.entries && position.entries.length > 0) {
+            const totalAllocation = position.entries.reduce(
+              (sum, entry) => sum + (entry.allocation || 0),
+              0
+            );
+            const weightedSum = position.entries.reduce(
+              (sum, entry) =>
+                sum + (entry.price * (entry.allocation || 0) || 0),
+              0
+            );
+            entryPrice =
+              totalAllocation > 0 ? weightedSum / totalAllocation : 0;
+          }
 
           return {
-            id: entry._id,
-            openTime: entry.timestamp,
-            closeTime: exit ? exit.timestamp : null,
-            type: entry.subType === "buy" ? "BUY" : "SELL",
-            openPrice: entry.price,
-            closePrice: exit ? exit.price : null,
-            status: exit ? "CLOSED" : "OPEN",
+            id: position._id || position.positionId || `pos-${Math.random()}`,
+            openTime: position.entryTime,
+            closeTime: position.exitTime,
+            type: "BUY", // Zakładamy, że wszystkie transakcje są typu BUY
+            openPrice: entryPrice,
+            closePrice: position.exitPrice,
+            status: position.status || (position.exitTime ? "CLOSED" : "OPEN"),
           };
         });
 
-        console.log("Transactions processed from signals:", mappedTransactions);
+        console.log(
+          "Transactions processed from positions:",
+          mappedTransactions
+        );
         return mappedTransactions;
       } catch (err) {
-        console.warn("Error processing signals:", err);
+        console.warn("Error processing positions:", err);
         return []; // Zwracamy pustą tablicę
       }
     } catch (err) {
@@ -527,7 +546,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       return []; // Zwracamy pustą tablicę
     }
   };
-
   // Funkcja formatująca datę na osi X
   const formatXAxis = (timestamp) => {
     if (!timestamp) return "";
