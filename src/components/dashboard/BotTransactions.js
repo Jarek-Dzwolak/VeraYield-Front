@@ -85,19 +85,69 @@ const BotTransactions = () => {
 
       const data = await response.json();
 
-      // Sprawdź, czy dane są w odpowiednim formacie
-      if (!data || !Array.isArray(data.history)) {
-        // Dostosowanie do nowego API, które zwraca obiekt z historią
-        if (data && Array.isArray(data)) {
-          setTransactions(data);
-        } else {
-          setTransactions([]);
-        }
-      } else {
-        // Stary format zwracany przez API
-        setTransactions(data.history);
+      // Sprawdzamy różne możliwe formaty odpowiedzi
+      let transactionsData = [];
+      if (Array.isArray(data)) {
+        transactionsData = data;
+      } else if (data && data.history && Array.isArray(data.history)) {
+        transactionsData = data.history;
       }
 
+      // Filtrujemy tylko zamknięte transakcje
+      const closedTransactions = transactionsData.filter(
+        (tx) => tx.status === "closed" || tx.exitTime
+      );
+
+      // Przetwarzamy dane transakcji
+      const processedTransactions = closedTransactions.map((tx) => {
+        // Przygotuj dane wejść - sortuj po czasie, by mieć pewność kolejności
+        const entries =
+          tx.entries && tx.entries.length > 0
+            ? [...tx.entries].sort((a, b) => (a.time || 0) - (b.time || 0))
+            : [];
+
+        // Dane dla poszczególnych wejść (do 3)
+        const entry1 = entries.length > 0 ? entries[0] : null;
+        const entry2 = entries.length > 1 ? entries[1] : null;
+        const entry3 = entries.length > 2 ? entries[2] : null;
+
+        // Obliczenia dla całej pozycji
+        let totalAmount = 0;
+        let totalBtc = 0;
+
+        entries.forEach((entry) => {
+          const amount = entry.amount || 0;
+          const price = entry.price || 0;
+          totalAmount += amount;
+          if (price > 0) {
+            totalBtc += amount / price;
+          }
+        });
+
+        // Średnia ważona cena wejścia
+        const averageEntryPrice =
+          totalBtc > 0 ? totalAmount / totalBtc : tx.entryPrice || 0;
+
+        // Obliczenie zysku procentowego
+        let profitPercent = tx.profitPercent;
+        if (!profitPercent && tx.profit && totalAmount) {
+          profitPercent = (tx.profit / totalAmount) * 100;
+        }
+
+        return {
+          ...tx,
+          symbol: tx.symbol || (instance ? instance.symbol : "BTCUSDT"),
+          entry1: entry1,
+          entry2: entry2,
+          entry3: entry3,
+          totalAmount: totalAmount,
+          averageEntryPrice: averageEntryPrice,
+          profitPercent: profitPercent,
+          totalEntries: entries.length,
+        };
+      });
+
+      setTransactions(processedTransactions);
       setIsLoading(false);
     } catch (err) {
       setError(err.message);
@@ -113,17 +163,16 @@ const BotTransactions = () => {
 
   // Formatowanie daty i czasu
   const formatDateTime = (timestamp) => {
-    if (!timestamp) return { date: "-", time: "-" };
+    if (!timestamp) return "-";
 
     const date = new Date(timestamp);
-    return {
-      date: date.toLocaleDateString("pl-PL"),
-      time: date.toLocaleTimeString("pl-PL", {
+    return `${date.toLocaleDateString("pl-PL")} ${date.toLocaleTimeString(
+      "pl-PL",
+      {
         hour: "2-digit",
         minute: "2-digit",
-        second: "2-digit",
-      }),
-    };
+      }
+    )}`;
   };
 
   // Formatowanie liczby z dwoma miejscami po przecinku
@@ -132,44 +181,17 @@ const BotTransactions = () => {
     return parseFloat(number).toFixed(2);
   };
 
-  // Obliczanie całkowitej kwoty wejścia z wielu transakcji
-  const calculateTotalEntryAmount = (tx) => {
-    // Jeśli mamy już gotową wartość, używamy jej
-    if (tx.capitalAmount !== undefined && tx.capitalAmount !== null) {
-      return tx.capitalAmount;
-    }
-
-    // Jeśli nie, próbujemy obliczyć z entries
-    if (tx.entries && tx.entries.length > 0) {
-      return tx.entries.reduce((sum, entry) => sum + (entry.amount || 0), 0);
-    }
-
-    return null;
-  };
-
-  // Obliczanie procentowego zysku
-  const calculateProfitPercent = (tx) => {
-    // Jeśli profitPercent jest już dostępny w danych
-    if (tx.profitPercent !== undefined && tx.profitPercent !== null) {
-      return tx.profitPercent;
-    }
-
-    // Oblicz całkowitą kwotę wejścia
-    const totalEntryAmount = calculateTotalEntryAmount(tx);
-
-    // Jeśli mamy dostępny zysk i kwotę kapitału, obliczamy procent
-    if (tx.profit && totalEntryAmount && totalEntryAmount !== 0) {
-      return (tx.profit / totalEntryAmount) * 100;
-    }
-
-    return null;
+  // Formatowanie ceny i kwoty
+  const formatEntryData = (entry) => {
+    if (!entry) return "-";
+    return `$${formatNumber(entry.price)} / ${formatNumber(entry.amount)} USDT`;
   };
 
   if (isLoading) {
     return (
       <div className="bot-transactions card">
         <div className="card-header">
-          <h2>Transakcje</h2>
+          <h2>Historia Transakcji</h2>
         </div>
         <div className="loading-indicator">Ładowanie transakcji...</div>
       </div>
@@ -180,7 +202,7 @@ const BotTransactions = () => {
     return (
       <div className="bot-transactions card">
         <div className="card-header">
-          <h2>Transakcje</h2>
+          <h2>Historia Transakcji</h2>
         </div>
         <div className="error-message">{error}</div>
       </div>
@@ -190,9 +212,9 @@ const BotTransactions = () => {
   return (
     <div className="bot-transactions card">
       <div className="card-header">
-        <h2>Transakcje</h2>
+        <h2>Historia Transakcji</h2>
 
-        {/* Dodany selektor instancji */}
+        {/* Selektor instancji */}
         {activeInstances.length > 0 && (
           <div className="instance-selector">
             <select
@@ -226,123 +248,61 @@ const BotTransactions = () => {
 
       <div className="transactions-table">
         <div className="table-container">
-          <div className="table-fixed-width">
-            <div className="table-header">
-              <span>Typ</span>
-              <span>Symbol</span>
-              <span>Wielkość</span>
-              <span>Cena wejścia</span>
-              <span>Cena wyjścia</span>
-              <span>Czas otwarcia</span>
-              <span>Czas zamknięcia</span>
-              <span>Zysk</span>
-              <span>% Zysku</span>
-              <span>Status</span>
-            </div>
-
-            <div className="transactions-list">
+          <table className="transactions-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Pierwsze wejście</th>
+                <th>Drugie wejście</th>
+                <th>Trzecie wejście</th>
+                <th>Średnia cena</th>
+                <th>Zysk %</th>
+                <th>Czas otwarcia</th>
+                <th>Czas zamknięcia</th>
+              </tr>
+            </thead>
+            <tbody>
               {transactions.length === 0 ? (
-                <div className="no-transactions">
-                  Brak transakcji dla wybranej instancji
-                </div>
+                <tr>
+                  <td colSpan="8" className="no-transactions">
+                    Brak transakcji dla wybranej instancji
+                  </td>
+                </tr>
               ) : (
-                transactions.map((tx) => {
-                  const entryTime = formatDateTime(tx.entryTime);
-                  const exitTime = tx.exitTime
-                    ? formatDateTime(tx.exitTime)
-                    : null;
-                  const profitPercent = calculateProfitPercent(tx);
-                  const totalEntryAmount = calculateTotalEntryAmount(tx);
-
-                  return (
-                    <div
-                      key={
-                        tx._id ||
-                        tx.id ||
-                        tx.positionId ||
-                        `tx-${Math.random()}`
+                transactions.map((tx) => (
+                  <tr
+                    key={
+                      tx._id || tx.id || tx.positionId || `tx-${Math.random()}`
+                    }
+                  >
+                    <td>{tx.symbol}</td>
+                    <td>{formatEntryData(tx.entry1)}</td>
+                    <td>{formatEntryData(tx.entry2)}</td>
+                    <td>{formatEntryData(tx.entry3)}</td>
+                    <td>${formatNumber(tx.averageEntryPrice)}</td>
+                    <td
+                      className={
+                        tx.profitPercent > 0
+                          ? "profit"
+                          : tx.profitPercent < 0
+                          ? "loss"
+                          : ""
                       }
-                      className="transaction-row"
                     >
-                      <span
-                        className={`tx-type ${
-                          tx.status === "closed" ? "sell" : "buy"
-                        }`}
-                      >
-                        {tx.status === "closed" ? "ZAMKNIĘTA" : "OTWARTA"}
-                      </span>
-                      <span className="tx-pair">
-                        {tx.symbol ||
-                          (selectedInstance
-                            ? selectedInstance.symbol
-                            : "BTC/USDT")}
-                      </span>
-                      <span className="tx-amount">
-                        {formatNumber(totalEntryAmount)} USDT
-                      </span>
-                      <span className="tx-price">
-                        ${formatNumber(tx.entryPrice)}
-                      </span>
-                      <span className="tx-price">
-                        {tx.exitPrice ? `$${formatNumber(tx.exitPrice)}` : "-"}
-                      </span>
-                      <span className="tx-time">
-                        <div>{entryTime.date}</div>
-                        <div>{entryTime.time}</div>
-                      </span>
-                      <span className="tx-time">
-                        {exitTime ? (
-                          <>
-                            <div>{exitTime.date}</div>
-                            <div>{exitTime.time}</div>
-                          </>
-                        ) : (
-                          "-"
-                        )}
-                      </span>
-                      <span
-                        className={`tx-profit ${
-                          tx.profit > 0 ? "profit" : tx.profit < 0 ? "loss" : ""
-                        }`}
-                      >
-                        {tx.profit
-                          ? `${tx.profit > 0 ? "+" : ""}${formatNumber(
-                              tx.profit
-                            )} USDT`
-                          : "-"}
-                      </span>
-                      <span
-                        className={`tx-profit-percent ${
-                          profitPercent > 0
-                            ? "profit"
-                            : profitPercent < 0
-                            ? "loss"
-                            : ""
-                        }`}
-                      >
-                        {profitPercent !== null
-                          ? `${profitPercent > 0 ? "+" : ""}${formatNumber(
-                              profitPercent
-                            )}%`
-                          : "-"}
-                      </span>
-                      <span className={`tx-status ${tx.status}`}>
-                        {tx.status === "active"
-                          ? "AKTYWNA"
-                          : tx.status === "closed"
-                          ? "ZAMKNIĘTA"
-                          : tx.status === "pending"
-                          ? "OCZEKUJĄCA"
-                          : tx.status
-                          ? tx.status.toUpperCase()
-                          : "OCZEKUJĄCA"}
-                      </span>
-                    </div>
-                  );
-                })
+                      {tx.profitPercent !== null &&
+                      tx.profitPercent !== undefined
+                        ? `${tx.profitPercent > 0 ? "+" : ""}${formatNumber(
+                            tx.profitPercent
+                          )}%`
+                        : "-"}
+                    </td>
+                    <td>{formatDateTime(tx.entryTime)}</td>
+                    <td>{formatDateTime(tx.exitTime)}</td>
+                  </tr>
+                ))
               )}
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

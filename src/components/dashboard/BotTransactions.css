@@ -36,6 +36,7 @@
   min-width: 900px; /* Zwiększona minimalna szerokość dla dodatkowej kolumny */
 }
 
+/* Style dla starej wersji grid-based */
 .table-header {
   display: grid;
   grid-template-columns: 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 1fr 1fr 0.8fr 0.8fr 0.8fr;
@@ -68,6 +69,43 @@
 
 .transaction-row:hover {
   background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Style dla nowej wersji opartej na tabeli HTML */
+.transactions-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  min-width: 900px;
+}
+
+.transactions-table th,
+.transactions-table td {
+  padding: 0.6rem 0.5rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.transactions-table th {
+  background-color: rgba(0, 0, 0, 0.2);
+  color: var(--white);
+  font-weight: 600;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.transactions-table tbody tr {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  margin-bottom: 0.3rem;
+}
+
+.transactions-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.transactions-table td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .tx-type {
@@ -107,12 +145,14 @@
 }
 
 .tx-profit.profit,
-.tx-profit-percent.profit {
+.tx-profit-percent.profit,
+.profit {
   color: var(--green);
 }
 
 .tx-profit.loss,
-.tx-profit-percent.loss {
+.tx-profit-percent.loss,
+.loss {
   color: var(--red);
 }
 
@@ -182,4 +222,20 @@
 .instance-selector select:focus {
   outline: none;
   border-color: var(--purple);
+}
+
+/* Dodatkowe style dla nowej tabeli */
+.transactions-table tbody td.entry-data {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.transactions-table tbody td.avg-price {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.transactions-table tbody td.datetime {
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
