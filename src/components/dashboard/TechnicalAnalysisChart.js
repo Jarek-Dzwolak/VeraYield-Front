@@ -8,11 +8,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState("");
-  const [priceData, setPriceData] = useState([]);
-  const [data15m, setData15m] = useState([]);
-  const [data1h, setData1h] = useState([]);
-  const [transactions, setTransactions] = useState([]);
-  const [combinedData, setCombinedData] = useState([]);
 
   // Refs dla wykresu
   const chartContainerRef = useRef();
@@ -1052,11 +1047,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
     setLoading(true);
     setError(null);
-    setPriceData([]);
-    setData15m([]);
-    setData1h([]);
-    setTransactions([]);
-    setCombinedData([]);
     setLoadingStatus("Inicjalizacja wykresu...");
 
     try {
@@ -1085,12 +1075,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       if (!minuteData || minuteData.length === 0) {
         throw new Error("Nie udało się pobrać danych minutowych");
       }
-
-      // Zapisz pobrane dane
-      setPriceData(minuteData);
-      setData15m(data15mResult);
-      setData1h(data1hResult);
-      setTransactions(txData);
 
       setLoadingStatus("Obliczanie wskaźników technicznych...");
 
@@ -1163,6 +1147,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         chartInstanceRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, instance]);
 
   // Renderowanie przycisku aktywacji jeśli wykres jest nieaktywny
