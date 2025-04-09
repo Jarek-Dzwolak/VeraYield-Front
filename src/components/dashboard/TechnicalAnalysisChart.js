@@ -644,14 +644,14 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
         return {
           id: position._id || position.positionId || `pos-${Math.random()}`,
-          openTime: position.entryTime,
-          closeTime: position.exitTime,
+          openTime: position.entryTime ? Number(position.entryTime) : null, // Konwersja na liczbę
+          closeTime: position.exitTime ? Number(position.exitTime) : null, // Konwersja na liczbę
           type:
             position.entries && position.entries.length > 0
               ? position.entries[0].subType || "unknown"
               : "unknown",
-          openPrice: entryPrice,
-          closePrice: position.exitPrice,
+          openPrice: entryPrice ? Number(entryPrice) : null, // Konwersja na liczbę
+          closePrice: position.exitPrice ? Number(position.exitPrice) : null, // Konwersja na liczbę
           status: position.status || (position.exitTime ? "CLOSED" : "OPEN"),
         };
       });
@@ -1072,6 +1072,75 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       console.log(
         `Pokrycie wskaźnikami: HurstUpper ${hurstUpperCount}/${combined.length}, HurstLower ${hurstLowerCount}/${combined.length}, EMA ${emaCount}/${combined.length}, EntryMarkers: ${entryMarkerCount}, ExitMarkers: ${exitMarkerCount}`
       );
+      console.log(
+        `Pokrycie wskaźnikami: HurstUpper ${hurstUpperCount}/${combined.length}, HurstLower ${hurstLowerCount}/${combined.length}, EMA ${emaCount}/${combined.length}, EntryMarkers: ${entryMarkerCount}, ExitMarkers: ${exitMarkerCount}`
+      );
+      if (transactionsData && transactionsData.length > 0) {
+        console.log("=== DIAGNOSTYKA TRANSAKCJI ===");
+        console.log(
+          "Zakres czasowy świec:",
+          new Date(combined[0].time).toLocaleString(),
+          "do",
+          new Date(combined[combined.length - 1].time).toLocaleString()
+        );
+
+        transactionsData.forEach((tx, index) => {
+          console.log(`Transakcja ${index + 1} (${tx.id}):`);
+          console.log(
+            `- Wejście: ${
+              tx.openTime ? new Date(tx.openTime).toLocaleString() : "brak"
+            }, cena: ${tx.openPrice}`
+          );
+          console.log(
+            `- Wyjście: ${
+              tx.closeTime ? new Date(tx.closeTime).toLocaleString() : "brak"
+            }, cena: ${tx.closePrice}`
+          );
+
+          if (tx.openTime) {
+            const openIndex = findClosestTimeIndex(combined, tx.openTime);
+            console.log(`- Indeks wejścia: ${openIndex}`);
+            if (openIndex !== -1) {
+              console.log(
+                `  Czas znalezionego punktu: ${new Date(
+                  combined[openIndex].time
+                ).toLocaleString()}`
+              );
+              console.log(
+                `  Czy ma flagę entryMarker?: ${
+                  combined[openIndex].entryMarker ? "TAK" : "NIE"
+                }`
+              );
+            }
+          }
+
+          if (tx.closeTime) {
+            const closeIndex = findClosestTimeIndex(combined, tx.closeTime);
+            console.log(`- Indeks wyjścia: ${closeIndex}`);
+            if (closeIndex !== -1) {
+              console.log(
+                `  Czas znalezionego punktu: ${new Date(
+                  combined[closeIndex].time
+                ).toLocaleString()}`
+              );
+              console.log(
+                `  Czy ma flagę exitMarker?: ${
+                  combined[closeIndex].exitMarker ? "TAK" : "NIE"
+                }`
+              );
+            }
+          }
+
+          // Sprawdź czy transakcja jest w zakresie czasowym wykresu
+          const inTimeRange =
+            tx.openTime >= combined[0].time &&
+            tx.openTime <= combined[combined.length - 1].time;
+          console.log(
+            `- Czy w zakresie czasowym wykresu?: ${inTimeRange ? "TAK" : "NIE"}`
+          );
+        });
+        console.log("==============================");
+      }
 
       return combined;
     } catch (err) {
@@ -1294,74 +1363,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
                   dataKey="price"
                   name="Cena"
                   stroke="#2196f3"
-                  dot={(props) => {
-                    const { cx, cy, payload } = props;
-                    // Domyślnie bez kropki (false)
-                    let dotElement = false;
-
-                    // Jeśli to marker wejścia
-                    if (payload.entryMarker) {
-                      dotElement = (
-                        <circle
-                          cx={cx}
-                          cy={cy}
-                          r={8}
-                          fill="#4CAF50"
-                          stroke="#fff"
-                          strokeWidth={2}
-                        />
-                      );
-                    }
-                    // Jeśli to marker wyjścia
-                    else if (payload.exitMarker) {
-                      dotElement = (
-                        <circle
-                          cx={cx}
-                          cy={cy}
-                          r={8}
-                          fill="#FF9800"
-                          stroke="#fff"
-                          strokeWidth={2}
-                        />
-                      );
-                    }
-
-                    return dotElement;
-                  }}
-                  label={(props) => {
-                    const { x, y, value, payload } = props;
-
-                    // Etykiety tylko dla znaczników
-                    if (payload.entryMarker) {
-                      return (
-                        <text
-                          x={x}
-                          y={y - 15}
-                          fill="#4CAF50"
-                          textAnchor="middle"
-                          fontSize={12}
-                          fontWeight="bold"
-                        >
-                          {`WEJŚCIE (${payload.entryType || "unknown"})`}
-                        </text>
-                      );
-                    } else if (payload.exitMarker) {
-                      return (
-                        <text
-                          x={x}
-                          y={y - 15}
-                          fill="#FF9800"
-                          textAnchor="middle"
-                          fontSize={12}
-                          fontWeight="bold"
-                        >
-                          WYJŚCIE
-                        </text>
-                      );
-                    }
-
-                    return null;
-                  }}
                   strokeWidth={1.5}
                   activeDot={{ r: 6 }}
                   isAnimationActive={false}
@@ -1390,14 +1391,16 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
                         <ReferenceLine
                           x={tx.openTime}
                           stroke="#4CAF50"
-                          strokeDasharray="3 3"
+                          strokeWidth={2} // zwiększona grubość linii
+                          strokeDasharray="5 5" // wyraźniejszy wzór
                           label={{
-                            value: `WEJŚCIE @ ${
+                            value: `WEJŚCIE (${tx.type || "unknown"}) @ ${
                               tx.openPrice ? tx.openPrice.toFixed(2) : "?"
                             }`,
                             position: "insideTopLeft",
                             fill: "#4CAF50",
-                            fontSize: 12,
+                            fontSize: 14, // większa czcionka
+                            fontWeight: "bold", // pogrubienie
                           }}
                         />
                       )}
@@ -1407,14 +1410,16 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
                         <ReferenceLine
                           x={tx.closeTime}
                           stroke="#FF9800"
-                          strokeDasharray="3 3"
+                          strokeWidth={2} // zwiększona grubość linii
+                          strokeDasharray="5 5" // wyraźniejszy wzór
                           label={{
                             value: `WYJŚCIE @ ${
                               tx.closePrice ? tx.closePrice.toFixed(2) : "?"
                             }`,
                             position: "insideTopRight",
                             fill: "#FF9800",
-                            fontSize: 12,
+                            fontSize: 14, // większa czcionka
+                            fontWeight: "bold", // pogrubienie
                           }}
                         />
                       )}
@@ -1432,7 +1437,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
                   fill="#30363d"
                   tickFormatter={formatXAxis}
                   travellerWidth={10}
-                  startIndex={Math.max(0, combinedData.length - 300)}
+                  startIndex={0}
                   endIndex={combinedData.length - 1}
                 />
               </LineChart>
