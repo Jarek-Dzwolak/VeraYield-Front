@@ -28,6 +28,29 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   const [transactions, setTransactions] = useState([]);
   const [combinedData, setCombinedData] = useState([]);
 
+  // DODANY NOWY USEEFFECT do logowania danych przed renderowaniem
+  useEffect(() => {
+    if (combinedData.length > 0) {
+      console.log("BEZPOŚREDNIO PRZED RENDEROWANIEM WYKRESU:", {
+        czyTransakcjeIstnieją: transactions && transactions.length > 0,
+        ilośćTransakcji: transactions ? transactions.length : 0,
+        pierwszaTransakcja:
+          transactions && transactions.length > 0
+            ? {
+                openTime: transactions[0].openTime,
+                openDate: new Date(transactions[0].openTime).toLocaleString(),
+              }
+            : null,
+        zakresWykresu: {
+          start: new Date(combinedData[0].time).toLocaleString(),
+          koniec: new Date(
+            combinedData[combinedData.length - 1].time
+          ).toLocaleString(),
+        },
+      });
+    }
+  }, [combinedData, transactions]);
+
   // Pobieranie parametrów z instancji
   const getInstanceParams = () => {
     if (!instance || !instance.strategy || !instance.strategy.parameters) {
@@ -459,8 +482,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   };
 
   // Pobieranie rzeczywistych transakcji
-  // Pobieranie rzeczywistych transakcji
-  // Znajdź funkcję fetchTransactions i zmodyfikuj ją tak:
   const fetchTransactions = async (instanceId) => {
     try {
       setLoadingStatus("Pobieranie historii transakcji...");
@@ -657,6 +678,26 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       });
 
       console.log("Final transactions to display:", mappedTransactions);
+
+      // DODANE DODATKOWE LOGOWANIE DLA TRANSAKCJI
+      if (mappedTransactions.length > 0) {
+        console.log("SZCZEGÓŁY TRANSAKCJI:", {
+          liczbaTransakcji: mappedTransactions.length,
+          pierwszaTransakcja: {
+            id: mappedTransactions[0].id,
+            openTime: mappedTransactions[0].openTime,
+            openTimeDate: new Date(
+              mappedTransactions[0].openTime
+            ).toLocaleString(),
+            closeTime: mappedTransactions[0].closeTime,
+            closeTimeDate: mappedTransactions[0].closeTime
+              ? new Date(mappedTransactions[0].closeTime).toLocaleString()
+              : "brak",
+            type: mappedTransactions[0].type,
+          },
+        });
+      }
+
       return mappedTransactions;
     } catch (err) {
       console.error("Error in transaction processing:", err);
@@ -664,6 +705,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       return [];
     }
   };
+
   // Funkcja formatująca datę na osi X
   const formatXAxis = (timestamp) => {
     if (!timestamp) return "";
@@ -954,7 +996,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   };
 
   // Usprawniona funkcja do łączenia danych
-  // Usprawniona funkcja do łączenia danych
   const createCombinedData = (
     minuteData,
     hurstUpper,
@@ -1072,9 +1113,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       console.log(
         `Pokrycie wskaźnikami: HurstUpper ${hurstUpperCount}/${combined.length}, HurstLower ${hurstLowerCount}/${combined.length}, EMA ${emaCount}/${combined.length}, EntryMarkers: ${entryMarkerCount}, ExitMarkers: ${exitMarkerCount}`
       );
-      console.log(
-        `Pokrycie wskaźnikami: HurstUpper ${hurstUpperCount}/${combined.length}, HurstLower ${hurstLowerCount}/${combined.length}, EMA ${emaCount}/${combined.length}, EntryMarkers: ${entryMarkerCount}, ExitMarkers: ${exitMarkerCount}`
-      );
+
       if (transactionsData && transactionsData.length > 0) {
         console.log("=== DIAGNOSTYKA TRANSAKCJI ===");
         console.log(
@@ -1246,6 +1285,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     };
   }, [isActive, instance]);
   /* eslint-enable react-hooks/exhaustive-deps */
+
   // Renderowanie przycisku aktywacji jeśli wykres jest nieaktywny
   if (!isActive) {
     return (
@@ -1271,27 +1311,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
   // Pobierz parametry dla wyświetlenia
   const params = getInstanceParams();
-  useEffect(() => {
-    if (combinedData.length > 0) {
-      console.log("BEZPOŚREDNIO PRZED RENDEROWANIEM WYKRESU:", {
-        czyTransakcjeIstnieją: transactions && transactions.length > 0,
-        ilośćTransakcji: transactions ? transactions.length : 0,
-        pierwszaTransakcja:
-          transactions && transactions.length > 0
-            ? {
-                openTime: transactions[0].openTime,
-                openDate: new Date(transactions[0].openTime).toLocaleString(),
-              }
-            : null,
-        zakresWykresu: {
-          start: new Date(combinedData[0].time).toLocaleString(),
-          koniec: new Date(
-            combinedData[combinedData.length - 1].time
-          ).toLocaleString(),
-        },
-      });
-    }
-  }, [combinedData, transactions]);
+
   // Główny widok wykresu
   return (
     <div className="technical-analysis-chart">
@@ -1377,6 +1397,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
                   isAnimationActive={false}
                   connectNulls={true}
                 />
+
                 {/* Linia ceny */}
                 <Line
                   type="monotone"
@@ -1402,6 +1423,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
                   connectNulls={true}
                 />
 
+                {/* Renderowanie markerów transakcji */}
                 {transactions && transactions.length > 0 ? (
                   transactions.map((tx, i) => {
                     console.log(`Renderowanie transakcji ${i}:`, {
@@ -1465,6 +1487,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
                 ) : (
                   <React.Fragment></React.Fragment>
                 )}
+
                 {/* Suwak do przewijania */}
                 <Brush
                   dataKey="time"
