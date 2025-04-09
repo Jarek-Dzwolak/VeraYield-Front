@@ -146,31 +146,38 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       // W ciągu 4 dni mamy maksymalnie 4*24*60 = 5760 minut
       // Podzielmy ten okres na 8 fragmentów po 12 godzin (720 minut) każdy
       // Zapewni to, że każde zapytanie zwróci mniej niż 1000 świec
-      const fragmentsCount = 8;
-      const minutesPerFragment = (4 * 24 * 60) / fragmentsCount;
       const fragments = [];
 
-      // Tworzenie fragmentów po 12 godzin
-      for (let i = 0; i < fragmentsCount; i++) {
-        const fragmentStart = new Date(startDate.getTime());
-        fragmentStart.setMinutes(
-          fragmentStart.getMinutes() + i * minutesPerFragment
-        );
+      // Dzielimy 4-dniowy okres na fragmenty
+      for (let i = 4; i >= 0; i--) {
+        // Dla każdego dnia tworzymy dwa 12-godzinne fragmenty
+        // Fragment 1: 00:00 - 12:00
+        const day = new Date(endDate);
+        day.setDate(day.getDate() - i);
+        day.setHours(0, 0, 0, 0); // Początek dnia
 
-        const fragmentEnd = new Date(startDate.getTime());
-        fragmentEnd.setMinutes(
-          fragmentEnd.getMinutes() + (i + 1) * minutesPerFragment
-        );
+        const dayMid = new Date(day);
+        dayMid.setHours(12, 0, 0, 0); // Południe
 
-        // Dla ostatniego fragmentu upewnij się, że sięga do aktualnego czasu
-        const actualEnd = i === fragmentsCount - 1 ? endDate : fragmentEnd;
+        const dayEnd = new Date(day);
+        dayEnd.setHours(23, 59, 59, 999); // Koniec dnia
 
-        fragments.push({
-          start: fragmentStart,
-          end: actualEnd,
-        });
+        // Nie dodawaj fragmentów w przyszłości
+        if (day < endDate) {
+          fragments.push({
+            start: day,
+            end: i === 0 ? endDate : dayMid, // Dla dzisiejszego dnia, koniec to aktualny czas
+          });
+        }
+
+        // Nie dodawaj fragmentów w przyszłości
+        if (dayMid < endDate) {
+          fragments.push({
+            start: dayMid,
+            end: i === 0 ? endDate : dayEnd, // Dla dzisiejszego dnia, koniec to aktualny czas
+          });
+        }
       }
-
       let allCandles = [];
 
       // Dodaj opóźnienie między zapytaniami aby respektować limit 1 zapytanie/sekundę
@@ -179,7 +186,16 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       // Pobierz dane dla każdego fragmentu sekwencyjnie z opóźnieniem 1 sekundy
       for (let i = 0; i < fragments.length; i++) {
         const fragment = fragments[i];
+        const isLastFragment = i === fragments.length - 1;
 
+        if (isLastFragment) {
+          console.log(
+            "Pobieranie ostatniego fragmentu:",
+            fragment.start.toLocaleString(),
+            "do",
+            fragment.end.toLocaleString()
+          );
+        }
         setLoadingStatus(
           `Pobieranie pakietu ${i + 1}/${fragments.length} danych minutowych...`
         );
@@ -205,7 +221,13 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
               }`
             );
           }
-
+          if (isLastFragment) {
+            const lastCandle = candles[candles.length - 1];
+            console.log(
+              "Ostatnia świeca z ostatniego fragmentu:",
+              new Date(lastCandle.originalTime).toLocaleString()
+            );
+          }
           // Poczekaj 1 sekundę przed następnym zapytaniem
           if (i < fragments.length - 1) {
             await delay(1000);
@@ -1056,9 +1078,20 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
       // Ustaw wspólny zakres dat dla wszystkich zapytań
       const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 4); // Pobieramy dokładnie 4 dni
+      console.log("Bieżący czas pobrania:", endDate.toLocaleString());
 
+      // Dodaj 10 minut buforowego czasu aby upewnić się, że pobieramy najnowsze dane
+      endDate.setMinutes(endDate.getMinutes() + 10);
+
+      const startDate = new Date();
+      // Dokładnie 4 dni wstecz, od aktualnego czasu
+      startDate.setDate(endDate.getDate() - 4);
+      console.log(
+        "Zakres pobrania od",
+        startDate.toLocaleString(),
+        "do",
+        endDate.toLocaleString()
+      );
       setLoadingStatus("Pobieranie danych dla wszystkich interwałów...");
 
       // Pobierz dane wszystkich trzech interwałów i transakcje równolegle
