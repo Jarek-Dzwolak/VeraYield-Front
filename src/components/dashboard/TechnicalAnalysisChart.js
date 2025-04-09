@@ -646,7 +646,10 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
           id: position._id || position.positionId || `pos-${Math.random()}`,
           openTime: position.entryTime,
           closeTime: position.exitTime,
-          type: "BUY", // Zakładamy, że wszystkie transakcje są typu BUY
+          type:
+            position.entries && position.entries.length > 0
+              ? position.entries[0].subType || "unknown"
+              : "unknown",
           openPrice: entryPrice,
           closePrice: position.exitPrice,
           status: position.status || (position.exitTime ? "CLOSED" : "OPEN"),
@@ -932,8 +935,33 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     return timeDiffs[medianIndex];
   };
 
+  // Funkcja pomocnicza do znajdowania najbliższego punktu czasowego
+  const findClosestTimeIndex = (data, targetTime) => {
+    if (!data || data.length === 0) return -1;
+
+    let closestIndex = 0;
+    let minDiff = Math.abs(data[0].time - targetTime);
+
+    for (let i = 1; i < data.length; i++) {
+      const diff = Math.abs(data[i].time - targetTime);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIndex = i;
+      }
+    }
+
+    return closestIndex;
+  };
+
   // Usprawniona funkcja do łączenia danych
-  const createCombinedData = (minuteData, hurstUpper, hurstLower, emaData) => {
+  // Usprawniona funkcja do łączenia danych
+  const createCombinedData = (
+    minuteData,
+    hurstUpper,
+    hurstLower,
+    emaData,
+    transactionsData
+  ) => {
     try {
       setLoadingStatus("Łączenie danych z różnych źródeł...");
 
@@ -943,7 +971,11 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       }
 
       console.log(
-        `Łączenie ${minuteData.length} punktów danych minutowych z wskaźnikami`
+        `Łączenie ${
+          minuteData.length
+        } punktów danych minutowych z wskaźnikami i ${
+          transactionsData?.length || 0
+        } transakcjami`
       );
 
       // Dane minutowe jako podstawa - są zachowane 1:1
@@ -978,6 +1010,54 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         }
       }
 
+      // Dodaj markery transakcji do najbliższych punktów w czasie
+      if (transactionsData && transactionsData.length > 0) {
+        console.log(
+          "Dodawanie markerów transakcji do danych:",
+          transactionsData
+        );
+
+        // Dla każdej transakcji znajdź najbliższy punkt danych minutowych
+        transactionsData.forEach((tx) => {
+          // Dodaj marker wejścia
+          if (tx.openTime) {
+            const closestEntryIndex = findClosestTimeIndex(
+              combined,
+              tx.openTime
+            );
+            if (closestEntryIndex !== -1) {
+              combined[closestEntryIndex].entryMarker = true;
+              combined[closestEntryIndex].entryPrice = tx.openPrice;
+              combined[closestEntryIndex].entryType = tx.type || "unknown";
+              combined[closestEntryIndex].entryId = tx.id;
+              console.log(
+                `Dodano marker wejścia (${tx.type}) przy cenie ${
+                  tx.openPrice
+                } w czasie ${new Date(tx.openTime).toLocaleString()}`
+              );
+            }
+          }
+
+          // Dodaj marker wyjścia
+          if (tx.closeTime) {
+            const closestExitIndex = findClosestTimeIndex(
+              combined,
+              tx.closeTime
+            );
+            if (closestExitIndex !== -1) {
+              combined[closestExitIndex].exitMarker = true;
+              combined[closestExitIndex].exitPrice = tx.closePrice;
+              combined[closestExitIndex].exitId = tx.id;
+              console.log(
+                `Dodano marker wyjścia przy cenie ${
+                  tx.closePrice
+                } w czasie ${new Date(tx.closeTime).toLocaleString()}`
+              );
+            }
+          }
+        });
+      }
+
       // Sprawdzamy pokrycie wskaźnikami
       const hurstUpperCount = combined.filter(
         (p) => p.hurstUpper !== undefined
@@ -986,9 +1066,11 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         (p) => p.hurstLower !== undefined
       ).length;
       const emaCount = combined.filter((p) => p.ema !== undefined).length;
+      const entryMarkerCount = combined.filter((p) => p.entryMarker).length;
+      const exitMarkerCount = combined.filter((p) => p.exitMarker).length;
 
       console.log(
-        `Pokrycie wskaźnikami: HurstUpper ${hurstUpperCount}/${combined.length}, HurstLower ${hurstLowerCount}/${combined.length}, EMA ${emaCount}/${combined.length}`
+        `Pokrycie wskaźnikami: HurstUpper ${hurstUpperCount}/${combined.length}, HurstLower ${hurstLowerCount}/${combined.length}, EMA ${emaCount}/${combined.length}, EntryMarkers: ${entryMarkerCount}, ExitMarkers: ${exitMarkerCount}`
       );
 
       return combined;
@@ -1064,7 +1146,8 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         minuteData,
         hurstChannel.upper,
         hurstChannel.lower,
-        emaResult
+        emaResult,
+        txData // Dodane dane transakcji
       );
 
       // Zapisz dane w stanie komponentu
@@ -1205,14 +1288,80 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
                   isAnimationActive={false}
                   connectNulls={true}
                 />
-
                 {/* Linia ceny */}
                 <Line
                   type="monotone"
                   dataKey="price"
                   name="Cena"
                   stroke="#2196f3"
-                  dot={false}
+                  dot={(props) => {
+                    const { cx, cy, payload } = props;
+                    // Domyślnie bez kropki (false)
+                    let dotElement = false;
+
+                    // Jeśli to marker wejścia
+                    if (payload.entryMarker) {
+                      dotElement = (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={8}
+                          fill="#4CAF50"
+                          stroke="#fff"
+                          strokeWidth={2}
+                        />
+                      );
+                    }
+                    // Jeśli to marker wyjścia
+                    else if (payload.exitMarker) {
+                      dotElement = (
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={8}
+                          fill="#FF9800"
+                          stroke="#fff"
+                          strokeWidth={2}
+                        />
+                      );
+                    }
+
+                    return dotElement;
+                  }}
+                  label={(props) => {
+                    const { x, y, value, payload } = props;
+
+                    // Etykiety tylko dla znaczników
+                    if (payload.entryMarker) {
+                      return (
+                        <text
+                          x={x}
+                          y={y - 15}
+                          fill="#4CAF50"
+                          textAnchor="middle"
+                          fontSize={12}
+                          fontWeight="bold"
+                        >
+                          {`WEJŚCIE (${payload.entryType || "unknown"})`}
+                        </text>
+                      );
+                    } else if (payload.exitMarker) {
+                      return (
+                        <text
+                          x={x}
+                          y={y - 15}
+                          fill="#FF9800"
+                          textAnchor="middle"
+                          fontSize={12}
+                          fontWeight="bold"
+                        >
+                          WYJŚCIE
+                        </text>
+                      );
+                    }
+
+                    return null;
+                  }}
                   strokeWidth={1.5}
                   activeDot={{ r: 6 }}
                   isAnimationActive={false}
