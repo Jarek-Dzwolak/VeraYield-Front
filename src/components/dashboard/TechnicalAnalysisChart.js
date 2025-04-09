@@ -1271,7 +1271,27 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
   // Pobierz parametry dla wyświetlenia
   const params = getInstanceParams();
-
+  useEffect(() => {
+    if (combinedData.length > 0) {
+      console.log("BEZPOŚREDNIO PRZED RENDEROWANIEM WYKRESU:", {
+        czyTransakcjeIstnieją: transactions && transactions.length > 0,
+        ilośćTransakcji: transactions ? transactions.length : 0,
+        pierwszaTransakcja:
+          transactions && transactions.length > 0
+            ? {
+                openTime: transactions[0].openTime,
+                openDate: new Date(transactions[0].openTime).toLocaleString(),
+              }
+            : null,
+        zakresWykresu: {
+          start: new Date(combinedData[0].time).toLocaleString(),
+          koniec: new Date(
+            combinedData[combinedData.length - 1].time
+          ).toLocaleString(),
+        },
+      });
+    }
+  }, [combinedData, transactions]);
   // Główny widok wykresu
   return (
     <div className="technical-analysis-chart">
@@ -1382,53 +1402,69 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
                   connectNulls={true}
                 />
 
-                {/* Znajdź kod renderowania markerów transakcji i zamień na poniższy: */}
                 {transactions && transactions.length > 0 ? (
-                  transactions.map((tx) => (
-                    <React.Fragment key={tx.id}>
-                      {/* Marker otwarcia transakcji */}
-                      {tx.openTime && (
-                        <ReferenceLine
-                          x={tx.openTime}
-                          stroke="#4CAF50"
-                          strokeWidth={2} // zwiększona grubość linii
-                          strokeDasharray="5 5" // wyraźniejszy wzór
-                          label={{
-                            value: `WEJŚCIE (${tx.type || "unknown"}) @ ${
-                              tx.openPrice ? tx.openPrice.toFixed(2) : "?"
-                            }`,
-                            position: "insideTopLeft",
-                            fill: "#4CAF50",
-                            fontSize: 14, // większa czcionka
-                            fontWeight: "bold", // pogrubienie
-                          }}
-                        />
-                      )}
+                  transactions.map((tx, i) => {
+                    console.log(`Renderowanie transakcji ${i}:`, {
+                      id: tx.id,
+                      openTime: tx.openTime,
+                      openDate: tx.openTime
+                        ? new Date(tx.openTime).toLocaleString()
+                        : "brak",
+                      closeTime: tx.closeTime,
+                      closeDate: tx.closeTime
+                        ? new Date(tx.closeTime).toLocaleString()
+                        : "brak",
+                      type: tx.type,
+                    });
+                    return (
+                      <React.Fragment key={tx.id}>
+                        {/* Marker otwarcia transakcji */}
+                        {tx.openTime && (
+                          <ReferenceLine
+                            x={tx.openTime}
+                            stroke="#FF0000" // Jaskrawy czerwony
+                            strokeWidth={4} // Bardzo gruba linia
+                            strokeDasharray="5 5"
+                            isFront={true} // Próba wymuszenia renderowania na wierzchu
+                            label={{
+                              value: `WEJŚCIE (${tx.type || "unknown"}) @ ${
+                                tx.openPrice ? tx.openPrice.toFixed(2) : "?"
+                              }`,
+                              position: "insideTopLeft",
+                              fill: "#FFFFFF", // Biały tekst
+                              fontSize: 16, // Większa czcionka
+                              fontWeight: "bold",
+                              backgroundColor: "#FF0000", // Czerwone tło
+                            }}
+                          />
+                        )}
 
-                      {/* Marker zamknięcia transakcji (jeśli istnieje) */}
-                      {tx.closeTime && (
-                        <ReferenceLine
-                          x={tx.closeTime}
-                          stroke="#FF9800"
-                          strokeWidth={2} // zwiększona grubość linii
-                          strokeDasharray="5 5" // wyraźniejszy wzór
-                          label={{
-                            value: `WYJŚCIE @ ${
-                              tx.closePrice ? tx.closePrice.toFixed(2) : "?"
-                            }`,
-                            position: "insideTopRight",
-                            fill: "#FF9800",
-                            fontSize: 14, // większa czcionka
-                            fontWeight: "bold", // pogrubienie
-                          }}
-                        />
-                      )}
-                    </React.Fragment>
-                  ))
+                        {/* Marker zamknięcia transakcji (jeśli istnieje) */}
+                        {tx.closeTime && (
+                          <ReferenceLine
+                            x={tx.closeTime}
+                            stroke="#0000FF" // Jaskrawy niebieski
+                            strokeWidth={4} // Bardzo gruba linia
+                            strokeDasharray="5 5"
+                            isFront={true} // Próba wymuszenia renderowania na wierzchu
+                            label={{
+                              value: `WYJŚCIE @ ${
+                                tx.closePrice ? tx.closePrice.toFixed(2) : "?"
+                              }`,
+                              position: "insideTopRight",
+                              fill: "#FFFFFF", // Biały tekst
+                              fontSize: 16, // Większa czcionka
+                              fontWeight: "bold",
+                              backgroundColor: "#0000FF", // Niebieskie tło
+                            }}
+                          />
+                        )}
+                      </React.Fragment>
+                    );
+                  })
                 ) : (
                   <React.Fragment></React.Fragment>
                 )}
-
                 {/* Suwak do przewijania */}
                 <Brush
                   dataKey="time"
