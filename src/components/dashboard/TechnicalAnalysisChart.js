@@ -1,16 +1,5 @@
-import React, { useState, useEffect } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceLine,
-  Brush,
-} from "recharts";
+import React, { useState, useEffect, useRef } from "react";
+import { createChart, CrosshairMode } from "lightweight-charts";
 import "./TechnicalAnalysisChart.css";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "/api/v1";
@@ -19,37 +8,22 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState("");
-  // eslint-disable-next-line no-unused-vars
   const [priceData, setPriceData] = useState([]);
-  // eslint-disable-next-line no-unused-vars
   const [data15m, setData15m] = useState([]);
-  // eslint-disable-next-line no-unused-vars
   const [data1h, setData1h] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [combinedData, setCombinedData] = useState([]);
 
-  // DODANY NOWY USEEFFECT do logowania danych przed renderowaniem
-  useEffect(() => {
-    if (combinedData.length > 0) {
-      console.log("BEZPOŚREDNIO PRZED RENDEROWANIEM WYKRESU:", {
-        czyTransakcjeIstnieją: transactions && transactions.length > 0,
-        ilośćTransakcji: transactions ? transactions.length : 0,
-        pierwszaTransakcja:
-          transactions && transactions.length > 0
-            ? {
-                openTime: transactions[0].openTime,
-                openDate: new Date(transactions[0].openTime).toLocaleString(),
-              }
-            : null,
-        zakresWykresu: {
-          start: new Date(combinedData[0].time).toLocaleString(),
-          koniec: new Date(
-            combinedData[combinedData.length - 1].time
-          ).toLocaleString(),
-        },
-      });
-    }
-  }, [combinedData, transactions]);
+  // Refs dla wykresu
+  const chartContainerRef = useRef();
+  const chartInstanceRef = useRef(null);
+  const seriesRefs = useRef({
+    price: null,
+    hurstUpper: null,
+    hurstLower: null,
+    ema: null,
+    markers: null,
+  });
 
   // Pobieranie parametrów z instancji
   const getInstanceParams = () => {
@@ -133,16 +107,17 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         throw new Error(`Brak świec w danych ${interval}`);
       }
 
-      // Formatujemy dane dla wykresu Recharts
+      // Formatujemy dane dla wykresu
       const formattedData = candles.map((candle) => ({
-        time: new Date(candle.openTime).getTime(),
+        time: new Date(candle.openTime).getTime() / 1000, // TradingView używa timestamp w sekundach
         date: new Date(candle.openTime).toLocaleString(),
-        price: parseFloat(candle.close),
         open: parseFloat(candle.open),
         high: parseFloat(candle.high),
         low: parseFloat(candle.low),
         close: parseFloat(candle.close),
+        value: parseFloat(candle.close), // Dodajemy property 'value' dla linii
         volume: parseFloat(candle.volume),
+        originalTime: new Date(candle.openTime).getTime(), // Zachowujemy oryginalny timestamp w ms
       }));
 
       console.log(`Processed ${formattedData.length} candles for ${interval}`);
@@ -267,9 +242,9 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
       // Sprawdź czy pokrywamy pełne 4 dni
       if (uniqueCandles.length > 0) {
-        const firstCandleTime = new Date(uniqueCandles[0].time);
+        const firstCandleTime = new Date(uniqueCandles[0].originalTime);
         const lastCandleTime = new Date(
-          uniqueCandles[uniqueCandles.length - 1].time
+          uniqueCandles[uniqueCandles.length - 1].originalTime
         );
         const daysCovered =
           (lastCandleTime - firstCandleTime) / (1000 * 60 * 60 * 24);
@@ -285,15 +260,16 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       let gapsCount = 0;
 
       for (let i = 1; i < uniqueCandles.length; i++) {
-        const timeDiff = uniqueCandles[i].time - uniqueCandles[i - 1].time;
+        const timeDiff =
+          uniqueCandles[i].originalTime - uniqueCandles[i - 1].originalTime;
         if (timeDiff > minuteInMillis * 2) {
           // Jeśli przerwa większa niż 2 minuty
           gapsCount++;
           console.warn(
             `Znaleziono lukę w danych: ${new Date(
-              uniqueCandles[i - 1].time
+              uniqueCandles[i - 1].originalTime
             ).toLocaleString()} -> ${new Date(
-              uniqueCandles[i].time
+              uniqueCandles[i].originalTime
             ).toLocaleString()}, różnica: ${timeDiff / minuteInMillis} minut`
           );
         }
@@ -376,15 +352,16 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       let gapsCount = 0;
 
       for (let i = 1; i < uniqueCandles.length; i++) {
-        const timeDiff = uniqueCandles[i].time - uniqueCandles[i - 1].time;
+        const timeDiff =
+          uniqueCandles[i].originalTime - uniqueCandles[i - 1].originalTime;
         if (timeDiff > fifteenMinInMillis * 2) {
           // Więcej niż 30 minut
           gapsCount++;
           console.warn(
             `Znaleziono lukę w danych 15m: ${new Date(
-              uniqueCandles[i - 1].time
+              uniqueCandles[i - 1].originalTime
             ).toLocaleString()} -> ${new Date(
-              uniqueCandles[i].time
+              uniqueCandles[i].originalTime
             ).toLocaleString()}, różnica: ${
               timeDiff / fifteenMinInMillis
             } okresy 15m`
@@ -455,15 +432,16 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       let gapsCount = 0;
 
       for (let i = 1; i < uniqueCandles.length; i++) {
-        const timeDiff = uniqueCandles[i].time - uniqueCandles[i - 1].time;
+        const timeDiff =
+          uniqueCandles[i].originalTime - uniqueCandles[i - 1].originalTime;
         if (timeDiff > hourInMillis * 2) {
           // Więcej niż 2 godziny
           gapsCount++;
           console.warn(
             `Znaleziono lukę w danych 1h: ${new Date(
-              uniqueCandles[i - 1].time
+              uniqueCandles[i - 1].originalTime
             ).toLocaleString()} -> ${new Date(
-              uniqueCandles[i].time
+              uniqueCandles[i].originalTime
             ).toLocaleString()}, różnica: ${timeDiff / hourInMillis} godziny`
           );
         }
@@ -665,21 +643,21 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
         return {
           id: position._id || position.positionId || `pos-${Math.random()}`,
-          openTime: position.entryTime ? Number(position.entryTime) : null, // Konwersja na liczbę
-          closeTime: position.exitTime ? Number(position.exitTime) : null, // Konwersja na liczbę
+          openTime: position.entryTime ? Number(position.entryTime) : null,
+          closeTime: position.exitTime ? Number(position.exitTime) : null,
           type:
             position.entries && position.entries.length > 0
               ? position.entries[0].subType || "unknown"
               : "unknown",
-          openPrice: entryPrice ? Number(entryPrice) : null, // Konwersja na liczbę
-          closePrice: position.exitPrice ? Number(position.exitPrice) : null, // Konwersja na liczbę
+          openPrice: entryPrice ? Number(entryPrice) : null,
+          closePrice: position.exitPrice ? Number(position.exitPrice) : null,
           status: position.status || (position.exitTime ? "CLOSED" : "OPEN"),
         };
       });
 
+      // Dodatkowe informacje o transakcjach
       console.log("Final transactions to display:", mappedTransactions);
 
-      // DODANE DODATKOWE LOGOWANIE DLA TRANSAKCJI
       if (mappedTransactions.length > 0) {
         console.log("SZCZEGÓŁY TRANSAKCJI:", {
           liczbaTransakcji: mappedTransactions.length,
@@ -704,44 +682,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       setLoadingStatus(`Błąd pobierania transakcji: ${err.message}`);
       return [];
     }
-  };
-
-  // Funkcja formatująca datę na osi X
-  const formatXAxis = (timestamp) => {
-    if (!timestamp) return "";
-    const date = new Date(timestamp);
-    return `${date.getDate().toString().padStart(2, "0")}.${(
-      date.getMonth() + 1
-    )
-      .toString()
-      .padStart(2, "0")} ${date.getHours().toString().padStart(2, "0")}:${date
-      .getMinutes()
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
-  // Format liczb na osi Y
-  const formatYAxis = (price) => {
-    if (typeof price !== "number") return "";
-    if (price > 1000) {
-      return price.toFixed(0);
-    } else if (price > 100) {
-      return price.toFixed(2);
-    } else {
-      return price.toFixed(4);
-    }
-  };
-
-  // Format dla tooltipa
-  const formatTooltip = (value, name) => {
-    if (name === "price" && typeof value === "number") {
-      return [`${value.toFixed(2)} USD`, "Cena"];
-    } else if (name.includes("Hurst") && typeof value === "number") {
-      return [`${value.toFixed(2)} USD`, name];
-    } else if (name.includes("EMA") && typeof value === "number") {
-      return [`${value.toFixed(2)} USD`, name];
-    }
-    return [value, name];
   };
 
   // Usprawnione obliczenie kanału Hursta
@@ -769,6 +709,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         movingAvg.push({
           time: data[i].time,
           value: avg,
+          originalTime: data[i].originalTime,
         });
       }
 
@@ -785,6 +726,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         deviations.push({
           time: data[i].time,
           value: stdDev,
+          originalTime: data[i].originalTime,
         });
       }
 
@@ -793,12 +735,14 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         time: point.time,
         value:
           point.value + deviations[index].value * params.upperDeviationFactor,
+        originalTime: point.originalTime,
       }));
 
       const lower = movingAvg.map((point, index) => ({
         time: point.time,
         value:
           point.value - deviations[index].value * params.lowerDeviationFactor,
+        originalTime: point.originalTime,
       }));
 
       console.log(`Obliczono kanał Hursta: ${upper.length} punktów`);
@@ -834,6 +778,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       emaResults.push({
         time: data[periods - 1].time,
         value: firstEMA,
+        originalTime: data[periods - 1].originalTime,
       });
 
       // Obliczanie kolejnych EMA
@@ -843,6 +788,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         emaResults.push({
           time: data[i].time,
           value: currentEMA,
+          originalTime: data[i].originalTime,
         });
       }
 
@@ -853,6 +799,87 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       setLoadingStatus(`Błąd obliczania EMA: ${err.message}`);
       return [];
     }
+  };
+
+  // Funkcja pomocnicza do znajdowania najbliższego punktu czasowego
+  const findClosestTimeIndex = (data, targetTime) => {
+    if (!data || data.length === 0) return -1;
+
+    let closestIndex = 0;
+    let minDiff = Math.abs(data[0].originalTime - targetTime);
+
+    for (let i = 1; i < data.length; i++) {
+      const diff = Math.abs(data[i].originalTime - targetTime);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIndex = i;
+      }
+    }
+
+    return closestIndex;
+  };
+
+  // Funkcja do przygotowania markerów transakcji dla wykresu
+  const prepareTransactionMarkers = (minuteData, transactionsData) => {
+    if (
+      !transactionsData ||
+      transactionsData.length === 0 ||
+      !minuteData ||
+      minuteData.length === 0
+    ) {
+      return [];
+    }
+
+    const markers = [];
+
+    // Dla każdej transakcji
+    transactionsData.forEach((tx) => {
+      if (tx.openTime) {
+        const closestEntryIndex = findClosestTimeIndex(minuteData, tx.openTime);
+        if (closestEntryIndex !== -1) {
+          const candle = minuteData[closestEntryIndex];
+          markers.push({
+            time: candle.time,
+            position: "belowBar",
+            color: "#4CAF50",
+            shape: "arrowUp",
+            text: `WEJŚCIE (${tx.type || "unknown"}) @ ${
+              tx.openPrice?.toFixed(2) || "?"
+            }`,
+            id: `entry-${tx.id}`,
+            size: 2,
+          });
+          console.log(
+            `Dodano marker wejścia (${tx.type}) przy cenie ${
+              tx.openPrice
+            } w czasie ${new Date(tx.openTime).toLocaleString()}`
+          );
+        }
+      }
+
+      if (tx.closeTime) {
+        const closestExitIndex = findClosestTimeIndex(minuteData, tx.closeTime);
+        if (closestExitIndex !== -1) {
+          const candle = minuteData[closestExitIndex];
+          markers.push({
+            time: candle.time,
+            position: "aboveBar",
+            color: "#FF9800",
+            shape: "arrowDown",
+            text: `WYJŚCIE @ ${tx.closePrice?.toFixed(2) || "?"}`,
+            id: `exit-${tx.id}`,
+            size: 2,
+          });
+          console.log(
+            `Dodano marker wyjścia przy cenie ${
+              tx.closePrice
+            } w czasie ${new Date(tx.closeTime).toLocaleString()}`
+          );
+        }
+      }
+    });
+
+    return markers;
   };
 
   // Usprawniona interpolacja dla wskaźników z lepszą obsługą luk
@@ -866,326 +893,156 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       return [];
     }
 
-    const indicatorMap = new Map();
-    const result = new Array(minuteData.length);
+    const result = [];
 
-    // Indeksujemy punkty wskaźnika według czasu dla szybkiego dostępu
-    indicatorData.forEach((point) => {
-      indicatorMap.set(point.time, point.value);
-    });
-
-    // Sortujemy punkty wskaźnika według czasu
-    const sortedIndicatorPoints = [...indicatorData].sort(
-      (a, b) => a.time - b.time
-    );
-
-    // Zakres czasowy wskaźnika
-    const indicatorStartTime = sortedIndicatorPoints[0].time;
-    const indicatorEndTime =
-      sortedIndicatorPoints[sortedIndicatorPoints.length - 1].time;
-
-    // Dla każdego punktu danych minutowych
-    for (let i = 0; i < minuteData.length; i++) {
-      const currentTime = minuteData[i].time;
-
-      // Jeśli czas jest poza zakresem wskaźnika, pomijamy
-      if (currentTime < indicatorStartTime || currentTime > indicatorEndTime) {
-        result[i] = null;
-        continue;
-      }
-
-      // Jeśli mamy dokładne dopasowanie, używamy tej wartości
-      if (indicatorMap.has(currentTime)) {
-        result[i] = indicatorMap.get(currentTime);
-        continue;
-      }
-
-      // W przeciwnym razie szukamy dwóch najbliższych punktów dla interpolacji
-      let beforeIndex = -1;
-      let afterIndex = -1;
-
-      // Znajdź najbliższy punkt przed
-      for (let j = 0; j < sortedIndicatorPoints.length; j++) {
-        if (sortedIndicatorPoints[j].time <= currentTime) {
-          beforeIndex = j;
-        } else {
-          break;
-        }
-      }
-
-      // Znajdź najbliższy punkt po
-      for (let j = 0; j < sortedIndicatorPoints.length; j++) {
-        if (sortedIndicatorPoints[j].time >= currentTime) {
-          afterIndex = j;
-          break;
-        }
-      }
-
-      // Jeśli mamy punkty przed i po, interpolujemy
-      if (beforeIndex !== -1 && afterIndex !== -1) {
-        const beforePoint = sortedIndicatorPoints[beforeIndex];
-        const afterPoint = sortedIndicatorPoints[afterIndex];
-
-        // Sprawdzamy czy punkty nie są zbyt oddalone (max 2 okresy wskaźnika)
-        const maxTimeGap = afterPoint.time - beforePoint.time;
-        const expectedInterval = getExpectedInterval(indicatorData);
-
-        if (maxTimeGap <= expectedInterval * 2) {
-          // Interpolacja liniowa
-          const ratio =
-            (currentTime - beforePoint.time) /
-            (afterPoint.time - beforePoint.time);
-          result[i] =
-            beforePoint.value + (afterPoint.value - beforePoint.value) * ratio;
-        } else {
-          // Jeśli dystans jest za duży, używamy najbliższego punktu
-          result[i] =
-            currentTime - beforePoint.time < afterPoint.time - currentTime
-              ? beforePoint.value
-              : afterPoint.value;
-        }
-      }
-      // Jeśli mamy tylko punkt przed lub tylko punkt po, używamy go
-      else if (beforeIndex !== -1) {
-        result[i] = sortedIndicatorPoints[beforeIndex].value;
-      } else if (afterIndex !== -1) {
-        result[i] = sortedIndicatorPoints[afterIndex].value;
-      } else {
-        result[i] = null;
+    // Dla każdego punktu wskaźnika znajdź odpowiadający jemu punkt czasowy w danych minutowych
+    for (const point of indicatorData) {
+      // Znajdź najbliższy punkt w danych minutowych
+      const closestIndex = findClosestTimeIndex(minuteData, point.originalTime);
+      if (closestIndex !== -1) {
+        // Użyj jego czasu (w formacie dla TradingView) i wartości wskaźnika
+        result.push({
+          time: minuteData[closestIndex].time,
+          value: point.value,
+        });
       }
     }
 
     return result;
   };
 
-  // Pomocnicza funkcja do określenia oczekiwanego interwału na podstawie danych
-  const getExpectedInterval = (data) => {
-    if (!data || data.length < 2) return 60 * 60 * 1000; // Domyślnie 1 godzina
+  // Funkcja do tworzenia i inicjalizacji wykresu
+  const createAndSetupChart = () => {
+    if (!chartContainerRef.current) return;
 
-    // Znajdź medianę różnic czasowych
-    const timeDiffs = [];
-    for (let i = 1; i < data.length; i++) {
-      const diff = data[i].time - data[i - 1].time;
-      if (diff > 0) timeDiffs.push(diff);
+    // Usuń poprzedni wykres, jeśli istnieje
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.remove();
+      chartInstanceRef.current = null;
+      seriesRefs.current = {
+        price: null,
+        hurstUpper: null,
+        hurstLower: null,
+        ema: null,
+        markers: null,
+      };
     }
 
-    if (timeDiffs.length === 0) return 60 * 60 * 1000;
+    // Stwórz nowy wykres
+    const chart = createChart(chartContainerRef.current, {
+      height: 500,
+      layout: {
+        backgroundColor: "#151924",
+        textColor: "#d1d4dc",
+      },
+      grid: {
+        vertLines: {
+          color: "rgba(42, 46, 57, 0.5)",
+        },
+        horzLines: {
+          color: "rgba(42, 46, 57, 0.5)",
+        },
+      },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+      },
+      rightPriceScale: {
+        borderColor: "rgba(197, 203, 206, 0.8)",
+      },
+      timeScale: {
+        borderColor: "rgba(197, 203, 206, 0.8)",
+        timeVisible: true,
+        secondsVisible: false,
+      },
+    });
 
-    // Sortuj różnice i wybierz medianę
-    timeDiffs.sort((a, b) => a - b);
-    const medianIndex = Math.floor(timeDiffs.length / 2);
-    return timeDiffs[medianIndex];
+    // Dodaj serię cenową
+    const lineSeries = chart.addLineSeries({
+      color: "#2196f3",
+      lineWidth: 2,
+      crosshairMarkerVisible: true,
+      lastValueVisible: true,
+      priceLineVisible: true,
+    });
+    seriesRefs.current.price = lineSeries;
+
+    // Dodaj serię dla górnej bandy Hursta
+    const hurstUpperSeries = chart.addLineSeries({
+      color: "#4CAF50",
+      lineWidth: 1.5,
+      lineStyle: 1, // przerywana
+      lastValueVisible: true,
+      priceLineVisible: false,
+    });
+    seriesRefs.current.hurstUpper = hurstUpperSeries;
+
+    // Dodaj serię dla dolnej bandy Hursta
+    const hurstLowerSeries = chart.addLineSeries({
+      color: "#F44336",
+      lineWidth: 1.5,
+      lineStyle: 1, // przerywana
+      lastValueVisible: true,
+      priceLineVisible: false,
+    });
+    seriesRefs.current.hurstLower = hurstLowerSeries;
+
+    // Dodaj serię dla EMA
+    const emaSeries = chart.addLineSeries({
+      color: "#FF9800",
+      lineWidth: 1.5,
+      lineStyle: 0, // ciągła
+      lastValueVisible: true,
+      priceLineVisible: false,
+    });
+    seriesRefs.current.ema = emaSeries;
+
+    // Zapisz instancję wykresu
+    chartInstanceRef.current = chart;
+
+    // Dodaj obsługę zmiany rozmiaru
+    const resizeObserver = new ResizeObserver(() => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+        });
+      }
+    });
+    resizeObserver.observe(chartContainerRef.current);
+
+    // Zwróć funkcję czyszczącą
+    return () => {
+      resizeObserver.disconnect();
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.remove();
+        chartInstanceRef.current = null;
+      }
+    };
   };
 
-  // Funkcja pomocnicza do znajdowania najbliższego punktu czasowego
-  const findClosestTimeIndex = (data, targetTime) => {
-    if (!data || data.length === 0) return -1;
+  // Funkcja do renderowania danych na wykresie
+  const renderChartData = (priceData, hurstUpper, hurstLower, ema, markers) => {
+    if (!chartInstanceRef.current) return;
 
-    let closestIndex = 0;
-    let minDiff = Math.abs(data[0].time - targetTime);
+    // Przygotuj dane dla wykresów
+    const formattedPriceData = priceData.map((candle) => ({
+      time: candle.time,
+      value: candle.close,
+    }));
 
-    for (let i = 1; i < data.length; i++) {
-      const diff = Math.abs(data[i].time - targetTime);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestIndex = i;
-      }
+    // Ustaw dane dla serii
+    seriesRefs.current.price.setData(formattedPriceData);
+    seriesRefs.current.hurstUpper.setData(hurstUpper);
+    seriesRefs.current.hurstLower.setData(hurstLower);
+    seriesRefs.current.ema.setData(ema);
+
+    // Dodaj markery transakcji
+    if (markers && markers.length > 0) {
+      seriesRefs.current.price.setMarkers(markers);
     }
 
-    return closestIndex;
-  };
-
-  // Usprawniona funkcja do łączenia danych
-  const createCombinedData = (
-    minuteData,
-    hurstUpper,
-    hurstLower,
-    emaData,
-    transactionsData
-  ) => {
-    try {
-      setLoadingStatus("Łączenie danych z różnych źródeł...");
-
-      if (!minuteData || minuteData.length === 0) {
-        console.warn("Brak danych minutowych do połączenia");
-        return [];
-      }
-
-      console.log(
-        `Łączenie ${
-          minuteData.length
-        } punktów danych minutowych z wskaźnikami i ${
-          transactionsData?.length || 0
-        } transakcjami`
-      );
-
-      // Dane minutowe jako podstawa - są zachowane 1:1
-      const combined = minuteData.map((point) => ({
-        ...point, // Zachowujemy wszystkie oryginalne dane
-        price: point.close, // Ustawiamy cenę jako cenę zamknięcia do wykresu
-      }));
-
-      // Interpolujemy wartości wskaźników do danych minutowych
-      const interpolatedHurstUpper = interpolateIndicatorValues(
-        minuteData,
-        hurstUpper
-      );
-      const interpolatedHurstLower = interpolateIndicatorValues(
-        minuteData,
-        hurstLower
-      );
-      const interpolatedEMA = interpolateIndicatorValues(minuteData, emaData);
-
-      // Dodajemy zinterpolowane wartości do danych
-      for (let i = 0; i < combined.length; i++) {
-        if (interpolatedHurstUpper[i] !== null) {
-          combined[i].hurstUpper = interpolatedHurstUpper[i];
-        }
-
-        if (interpolatedHurstLower[i] !== null) {
-          combined[i].hurstLower = interpolatedHurstLower[i];
-        }
-
-        if (interpolatedEMA[i] !== null) {
-          combined[i].ema = interpolatedEMA[i];
-        }
-      }
-
-      // Dodaj markery transakcji do najbliższych punktów w czasie
-      if (transactionsData && transactionsData.length > 0) {
-        console.log(
-          "Dodawanie markerów transakcji do danych:",
-          transactionsData
-        );
-
-        // Dla każdej transakcji znajdź najbliższy punkt danych minutowych
-        transactionsData.forEach((tx) => {
-          // Dodaj marker wejścia
-          if (tx.openTime) {
-            const closestEntryIndex = findClosestTimeIndex(
-              combined,
-              tx.openTime
-            );
-            if (closestEntryIndex !== -1) {
-              combined[closestEntryIndex].entryMarker = true;
-              combined[closestEntryIndex].entryPrice = tx.openPrice;
-              combined[closestEntryIndex].entryType = tx.type || "unknown";
-              combined[closestEntryIndex].entryId = tx.id;
-              console.log(
-                `Dodano marker wejścia (${tx.type}) przy cenie ${
-                  tx.openPrice
-                } w czasie ${new Date(tx.openTime).toLocaleString()}`
-              );
-            }
-          }
-
-          // Dodaj marker wyjścia
-          if (tx.closeTime) {
-            const closestExitIndex = findClosestTimeIndex(
-              combined,
-              tx.closeTime
-            );
-            if (closestExitIndex !== -1) {
-              combined[closestExitIndex].exitMarker = true;
-              combined[closestExitIndex].exitPrice = tx.closePrice;
-              combined[closestExitIndex].exitId = tx.id;
-              console.log(
-                `Dodano marker wyjścia przy cenie ${
-                  tx.closePrice
-                } w czasie ${new Date(tx.closeTime).toLocaleString()}`
-              );
-            }
-          }
-        });
-      }
-
-      // Sprawdzamy pokrycie wskaźnikami
-      const hurstUpperCount = combined.filter(
-        (p) => p.hurstUpper !== undefined
-      ).length;
-      const hurstLowerCount = combined.filter(
-        (p) => p.hurstLower !== undefined
-      ).length;
-      const emaCount = combined.filter((p) => p.ema !== undefined).length;
-      const entryMarkerCount = combined.filter((p) => p.entryMarker).length;
-      const exitMarkerCount = combined.filter((p) => p.exitMarker).length;
-
-      console.log(
-        `Pokrycie wskaźnikami: HurstUpper ${hurstUpperCount}/${combined.length}, HurstLower ${hurstLowerCount}/${combined.length}, EMA ${emaCount}/${combined.length}, EntryMarkers: ${entryMarkerCount}, ExitMarkers: ${exitMarkerCount}`
-      );
-
-      if (transactionsData && transactionsData.length > 0) {
-        console.log("=== DIAGNOSTYKA TRANSAKCJI ===");
-        console.log(
-          "Zakres czasowy świec:",
-          new Date(combined[0].time).toLocaleString(),
-          "do",
-          new Date(combined[combined.length - 1].time).toLocaleString()
-        );
-
-        transactionsData.forEach((tx, index) => {
-          console.log(`Transakcja ${index + 1} (${tx.id}):`);
-          console.log(
-            `- Wejście: ${
-              tx.openTime ? new Date(tx.openTime).toLocaleString() : "brak"
-            }, cena: ${tx.openPrice}`
-          );
-          console.log(
-            `- Wyjście: ${
-              tx.closeTime ? new Date(tx.closeTime).toLocaleString() : "brak"
-            }, cena: ${tx.closePrice}`
-          );
-
-          if (tx.openTime) {
-            const openIndex = findClosestTimeIndex(combined, tx.openTime);
-            console.log(`- Indeks wejścia: ${openIndex}`);
-            if (openIndex !== -1) {
-              console.log(
-                `  Czas znalezionego punktu: ${new Date(
-                  combined[openIndex].time
-                ).toLocaleString()}`
-              );
-              console.log(
-                `  Czy ma flagę entryMarker?: ${
-                  combined[openIndex].entryMarker ? "TAK" : "NIE"
-                }`
-              );
-            }
-          }
-
-          if (tx.closeTime) {
-            const closeIndex = findClosestTimeIndex(combined, tx.closeTime);
-            console.log(`- Indeks wyjścia: ${closeIndex}`);
-            if (closeIndex !== -1) {
-              console.log(
-                `  Czas znalezionego punktu: ${new Date(
-                  combined[closeIndex].time
-                ).toLocaleString()}`
-              );
-              console.log(
-                `  Czy ma flagę exitMarker?: ${
-                  combined[closeIndex].exitMarker ? "TAK" : "NIE"
-                }`
-              );
-            }
-          }
-
-          // Sprawdź czy transakcja jest w zakresie czasowym wykresu
-          const inTimeRange =
-            tx.openTime >= combined[0].time &&
-            tx.openTime <= combined[combined.length - 1].time;
-          console.log(
-            `- Czy w zakresie czasowym wykresu?: ${inTimeRange ? "TAK" : "NIE"}`
-          );
-        });
-        console.log("==============================");
-      }
-
-      return combined;
-    } catch (err) {
-      console.error("Error combining data:", err);
-      setLoadingStatus(`Błąd łączenia danych: ${err.message}`);
-      return [];
+    // Dostosuj widoczny zakres
+    if (formattedPriceData.length > 0) {
+      chartInstanceRef.current.timeScale().fitContent();
     }
   };
 
@@ -1247,19 +1104,39 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       // Oblicz EMA na danych godzinowych
       const emaResult = calculateEMA(data1hResult, params.ema.periods);
 
-      setLoadingStatus("Synchronizacja danych...");
+      setLoadingStatus("Przygotowywanie danych do wykresu...");
 
-      // Połącz wszystkie dane w jeden zestaw - minutowe dane jako podstawa
-      const combinedResult = createCombinedData(
+      // Interpoluj dane wskaźników do formatu TradingView
+      const interpolatedHurstUpper = interpolateIndicatorValues(
         minuteData,
-        hurstChannel.upper,
-        hurstChannel.lower,
-        emaResult,
-        txData // Dodane dane transakcji
+        hurstChannel.upper
+      );
+      const interpolatedHurstLower = interpolateIndicatorValues(
+        minuteData,
+        hurstChannel.lower
+      );
+      const interpolatedEMA = interpolateIndicatorValues(minuteData, emaResult);
+
+      // Przygotuj markery transakcji
+      const transactionMarkers = prepareTransactionMarkers(minuteData, txData);
+
+      // Logi diagnostyczne
+      console.log(
+        `Przygotowane dane: Price ${minuteData.length}, HurstUpper ${interpolatedHurstUpper.length}, ` +
+          `HurstLower ${interpolatedHurstLower.length}, EMA ${interpolatedEMA.length}, Markers ${transactionMarkers.length}`
       );
 
-      // Zapisz dane w stanie komponentu
-      setCombinedData(combinedResult);
+      // Stwórz wykres, jeśli jeszcze nie istnieje
+      createAndSetupChart();
+
+      // Renderuj dane na wykresie
+      renderChartData(
+        minuteData,
+        interpolatedHurstUpper,
+        interpolatedHurstLower,
+        interpolatedEMA,
+        transactionMarkers
+      );
 
       setLoading(false);
       setLoadingStatus(
@@ -1273,7 +1150,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     }
   };
 
-  /* eslint-disable react-hooks/exhaustive-deps */
+  // Efekty dla inicjalizacji i czyszczenia wykresu
   useEffect(() => {
     if (isActive) {
       initializeChart();
@@ -1281,10 +1158,12 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
     // Czyszczenie przy odmontowaniu
     return () => {
-      // Żadnych operacji czyszczenia nie jest potrzebnych dla Recharts
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.remove();
+        chartInstanceRef.current = null;
+      }
     };
   }, [isActive, instance]);
-  /* eslint-enable react-hooks/exhaustive-deps */
 
   // Renderowanie przycisku aktywacji jeśli wykres jest nieaktywny
   if (!isActive) {
@@ -1338,177 +1217,11 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
           </div>
         )}
 
-        <div className="tradingview-chart">
-          {combinedData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={combinedData}
-                margin={{ top: 10, right: 30, left: 20, bottom: 50 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
-                <XAxis
-                  dataKey="time"
-                  tickFormatter={formatXAxis}
-                  tick={{ fontSize: 12, fill: "#aaa" }}
-                  stroke="#555"
-                  minTickGap={50}
-                  height={50}
-                  angle={-30}
-                  textAnchor="end"
-                />
-                <YAxis
-                  domain={["auto", "auto"]}
-                  tickFormatter={formatYAxis}
-                  tick={{ fontSize: 12, fill: "#aaa" }}
-                  stroke="#555"
-                  width={60}
-                />
-                <Tooltip
-                  labelFormatter={(label) => formatXAxis(label)}
-                  formatter={formatTooltip}
-                  contentStyle={{
-                    backgroundColor: "#1E1E1E",
-                    border: "1px solid #30363d",
-                  }}
-                />
-                <Legend />
-
-                {/* Kanał Hursta - dolna banda */}
-                <Line
-                  type="monotone"
-                  dataKey="hurstLower"
-                  name={`Hurst Lower (${params.hurst.periods})`}
-                  stroke="#F44336"
-                  dot={false}
-                  strokeWidth={1.5}
-                  strokeDasharray="5 5"
-                  isAnimationActive={false}
-                  connectNulls={true}
-                />
-
-                {/* EMA */}
-                <Line
-                  type="monotone"
-                  dataKey="ema"
-                  name={`EMA (${params.ema.periods})`}
-                  stroke="#FF9800"
-                  dot={false}
-                  strokeWidth={1.5}
-                  isAnimationActive={false}
-                  connectNulls={true}
-                />
-
-                {/* Linia ceny */}
-                <Line
-                  type="monotone"
-                  dataKey="price"
-                  name="Cena"
-                  stroke="#2196f3"
-                  strokeWidth={1.5}
-                  activeDot={{ r: 6 }}
-                  isAnimationActive={false}
-                  connectNulls={true}
-                />
-
-                {/* Kanał Hursta - górna banda */}
-                <Line
-                  type="monotone"
-                  dataKey="hurstUpper"
-                  name={`Hurst Upper (${params.hurst.periods})`}
-                  stroke="#4CAF50"
-                  dot={false}
-                  strokeWidth={1.5}
-                  strokeDasharray="5 5"
-                  isAnimationActive={false}
-                  connectNulls={true}
-                />
-
-                {/* Renderowanie markerów transakcji */}
-                {transactions && transactions.length > 0 ? (
-                  transactions.map((tx, i) => {
-                    console.log(`Renderowanie transakcji ${i}:`, {
-                      id: tx.id,
-                      openTime: tx.openTime,
-                      openDate: tx.openTime
-                        ? new Date(tx.openTime).toLocaleString()
-                        : "brak",
-                      closeTime: tx.closeTime,
-                      closeDate: tx.closeTime
-                        ? new Date(tx.closeTime).toLocaleString()
-                        : "brak",
-                      type: tx.type,
-                    });
-                    return (
-                      <React.Fragment key={tx.id}>
-                        {/* Marker otwarcia transakcji */}
-                        {tx.openTime && (
-                          <ReferenceLine
-                            x={tx.openTime}
-                            stroke="#FF0000" // Jaskrawy czerwony
-                            strokeWidth={4} // Bardzo gruba linia
-                            strokeDasharray="5 5"
-                            isFront={true} // Próba wymuszenia renderowania na wierzchu
-                            label={{
-                              value: `WEJŚCIE (${tx.type || "unknown"}) @ ${
-                                tx.openPrice ? tx.openPrice.toFixed(2) : "?"
-                              }`,
-                              position: "insideTopLeft",
-                              fill: "#FFFFFF", // Biały tekst
-                              fontSize: 16, // Większa czcionka
-                              fontWeight: "bold",
-                              backgroundColor: "#FF0000", // Czerwone tło
-                            }}
-                          />
-                        )}
-
-                        {/* Marker zamknięcia transakcji (jeśli istnieje) */}
-                        {tx.closeTime && (
-                          <ReferenceLine
-                            x={tx.closeTime}
-                            stroke="#0000FF" // Jaskrawy niebieski
-                            strokeWidth={4} // Bardzo gruba linia
-                            strokeDasharray="5 5"
-                            isFront={true} // Próba wymuszenia renderowania na wierzchu
-                            label={{
-                              value: `WYJŚCIE @ ${
-                                tx.closePrice ? tx.closePrice.toFixed(2) : "?"
-                              }`,
-                              position: "insideTopRight",
-                              fill: "#FFFFFF", // Biały tekst
-                              fontSize: 16, // Większa czcionka
-                              fontWeight: "bold",
-                              backgroundColor: "#0000FF", // Niebieskie tło
-                            }}
-                          />
-                        )}
-                      </React.Fragment>
-                    );
-                  })
-                ) : (
-                  <React.Fragment></React.Fragment>
-                )}
-
-                {/* Suwak do przewijania */}
-                <Brush
-                  dataKey="time"
-                  height={40}
-                  stroke="#555"
-                  fill="#30363d"
-                  tickFormatter={formatXAxis}
-                  travellerWidth={10}
-                  startIndex={0}
-                  endIndex={combinedData.length - 1}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            !loading && (
-              <div className="no-data-message">
-                <p>Brak danych do wyświetlenia</p>
-              </div>
-            )
-          )}
-        </div>
+        <div
+          id="tradingview-chart"
+          ref={chartContainerRef}
+          style={{ width: "100%", height: "500px" }}
+        ></div>
       </div>
 
       <div className="chart-footer">
@@ -1518,7 +1231,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         <div className="status-message">
           <small>
             {loadingStatus}
-            {combinedData.length > 0 && !loading && (
+            {!loading && (
               <>
                 {" "}
                 | Górny dewiator: {params.hurst.upperDeviationFactor} | Dolny
