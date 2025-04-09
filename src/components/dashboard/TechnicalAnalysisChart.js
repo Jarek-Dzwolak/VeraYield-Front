@@ -460,9 +460,11 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
   // Pobieranie rzeczywistych transakcji
   // Pobieranie rzeczywistych transakcji
+  // Znajdź funkcję fetchTransactions i zmodyfikuj ją tak:
   const fetchTransactions = async (instanceId) => {
     try {
       setLoadingStatus("Pobieranie historii transakcji...");
+      console.log("Pobieranie transakcji dla instanceId:", instanceId);
 
       const token = localStorage.getItem("token");
       if (!token) {
@@ -473,77 +475,190 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       const positionsUrl = `${API_BASE_URL}/signals/positions/history?instanceId=${instanceId}`;
       console.log(`Fetching position history from:`, positionsUrl);
 
-      try {
-        const positionsResponse = await fetch(positionsUrl, {
+      const positionsResponse = await fetch(positionsUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      // Pokaż szczegóły odpowiedzi HTTP
+      console.log(
+        "Position history response status:",
+        positionsResponse.status
+      );
+
+      let positions = [];
+
+      if (positionsResponse.ok) {
+        // Pobierz surową odpowiedź i pokaż ją
+        const rawText = await positionsResponse.text();
+        console.log("Raw API response:", rawText);
+
+        if (rawText && rawText.trim() !== "") {
+          try {
+            const positionsData = JSON.parse(rawText);
+            console.log("Parsed positions data:", positionsData);
+
+            // Obsługa obu formatów API (tablica lub obiekt z tablicą history)
+            positions = Array.isArray(positionsData)
+              ? positionsData
+              : positionsData.history
+              ? positionsData.history
+              : [];
+          } catch (e) {
+            console.error("Error parsing positions data:", e);
+          }
+        }
+      }
+
+      // Jeśli nie znaleziono pozycji, spróbuj pobrać sygnały i zrekonstruować transakcje
+      if (!positions || positions.length === 0) {
+        console.log("No positions found, trying to fetch signals...");
+
+        // Pobierz sygnały dla tej instancji (zarówno wejścia jak i wyjścia)
+        const signalsUrl = `${API_BASE_URL}/signals/instance/${instanceId}`;
+        const signalsResponse = await fetch(signalsUrl, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
 
-        if (!positionsResponse.ok) {
-          console.warn(
-            `HTTP error ${positionsResponse.status} when fetching positions`
-          );
-          return []; // Zwracamy pustą tablicę zamiast generowania przykładowych danych
-        }
+        if (signalsResponse.ok) {
+          const signalsData = await signalsResponse.json();
+          console.log("Fetched signals:", signalsData);
 
-        const positionsData = await positionsResponse.json();
-
-        // Obsługa obu formatów API (tablica lub obiekt z tablicą history)
-        const positions = Array.isArray(positionsData)
-          ? positionsData
-          : positionsData.history
-          ? positionsData.history
-          : [];
-
-        if (!positions || positions.length === 0) {
-          console.warn("No position history data found");
-          return [];
-        }
-
-        // Mapuj pozycje na format wykresu
-        const mappedTransactions = positions.map((position) => {
-          // Oblicz średnią cenę wejścia, jeśli nie jest dostępna bezpośrednio
-          let entryPrice = position.entryPrice;
-          if (!entryPrice && position.entries && position.entries.length > 0) {
-            const totalAllocation = position.entries.reduce(
-              (sum, entry) => sum + (entry.allocation || 0),
-              0
+          if (
+            signalsData &&
+            signalsData.signals &&
+            signalsData.signals.length > 0
+          ) {
+            // Zrekonstruuj transakcje z sygnałów
+            const entrySignals = signalsData.signals.filter(
+              (s) => s.type === "entry" && s.status === "executed"
             );
-            const weightedSum = position.entries.reduce(
-              (sum, entry) =>
-                sum + (entry.price * (entry.allocation || 0) || 0),
-              0
+
+            const exitSignals = signalsData.signals.filter(
+              (s) => s.type === "exit" && s.status === "executed"
             );
-            entryPrice =
-              totalAllocation > 0 ? weightedSum / totalAllocation : 0;
+
+            console.log(
+              `Found ${entrySignals.length} entry signals and ${exitSignals.length} exit signals`
+            );
+
+            // Grupuj według ID pozycji
+            const positionMap = new Map();
+
+            // Dodaj wszystkie sygnały wejścia
+            for (const signal of entrySignals) {
+              if (signal.positionId) {
+                if (!positionMap.has(signal.positionId)) {
+                  positionMap.set(signal.positionId, {
+                    positionId: signal.positionId,
+                    entries: [],
+                    exits: [],
+                  });
+                }
+
+                positionMap.get(signal.positionId).entries.push({
+                  signalId: signal._id,
+                  price: signal.price,
+                  timestamp: signal.timestamp,
+                  allocation: signal.allocation,
+                  amount: signal.amount,
+                  subType: signal.subType,
+                });
+              }
+            }
+
+            // Dodaj sygnały wyjścia
+            for (const signal of exitSignals) {
+              if (signal.positionId && positionMap.has(signal.positionId)) {
+                positionMap.get(signal.positionId).exits.push({
+                  signalId: signal._id,
+                  price: signal.price,
+                  timestamp: signal.timestamp,
+                  profit: signal.profit,
+                  profitPercent: signal.profitPercent,
+                });
+              }
+            }
+
+            console.log(
+              "Reconstructed positions:",
+              Array.from(positionMap.values())
+            );
+
+            // Konwertuj na format pozycji
+            positions = Array.from(positionMap.values()).map((pos) => {
+              // Sortuj wejścia według timestamp
+              pos.entries.sort((a, b) => a.timestamp - b.timestamp);
+
+              // Weź najwcześniejsze wejście jako główne
+              const firstEntry = pos.entries[0];
+
+              // Weź ostatnie wyjście (jeśli istnieje)
+              const lastExit =
+                pos.exits.length > 0
+                  ? pos.exits.sort((a, b) => b.timestamp - a.timestamp)[0]
+                  : null;
+
+              return {
+                _id: pos.positionId,
+                positionId: pos.positionId,
+                entryTime: firstEntry ? firstEntry.timestamp : null,
+                entryPrice: firstEntry ? firstEntry.price : null,
+                exitTime: lastExit ? lastExit.timestamp : null,
+                exitPrice: lastExit ? lastExit.price : null,
+                profit: lastExit ? lastExit.profit : null,
+                profitPercent: lastExit ? lastExit.profitPercent : null,
+                entries: pos.entries,
+                status: lastExit ? "CLOSED" : "OPEN",
+              };
+            });
           }
-
-          return {
-            id: position._id || position.positionId || `pos-${Math.random()}`,
-            openTime: position.entryTime,
-            closeTime: position.exitTime,
-            type: "BUY", // Zakładamy, że wszystkie transakcje są typu BUY
-            openPrice: entryPrice,
-            closePrice: position.exitPrice,
-            status: position.status || (position.exitTime ? "CLOSED" : "OPEN"),
-          };
-        });
-
-        console.log(
-          "Transactions processed from positions:",
-          mappedTransactions
-        );
-        return mappedTransactions;
-      } catch (err) {
-        console.warn("Error processing positions:", err);
-        return []; // Zwracamy pustą tablicę
+        }
       }
+
+      if (!positions || positions.length === 0) {
+        console.warn("No transactions found after all attempts");
+        return [];
+      }
+
+      // Mapuj pozycje na format wykresu
+      const mappedTransactions = positions.map((position) => {
+        // Oblicz średnią cenę wejścia, jeśli nie jest dostępna bezpośrednio
+        let entryPrice = position.entryPrice;
+        if (!entryPrice && position.entries && position.entries.length > 0) {
+          const totalAllocation = position.entries.reduce(
+            (sum, entry) => sum + (entry.allocation || 0),
+            0
+          );
+          const weightedSum = position.entries.reduce(
+            (sum, entry) => sum + (entry.price * (entry.allocation || 0) || 0),
+            0
+          );
+          entryPrice = totalAllocation > 0 ? weightedSum / totalAllocation : 0;
+        }
+
+        return {
+          id: position._id || position.positionId || `pos-${Math.random()}`,
+          openTime: position.entryTime,
+          closeTime: position.exitTime,
+          type: "BUY", // Zakładamy, że wszystkie transakcje są typu BUY
+          openPrice: entryPrice,
+          closePrice: position.exitPrice,
+          status: position.status || (position.exitTime ? "CLOSED" : "OPEN"),
+        };
+      });
+
+      console.log("Final transactions to display:", mappedTransactions);
+      return mappedTransactions;
     } catch (err) {
       console.error("Error in transaction processing:", err);
       setLoadingStatus(`Błąd pobierania transakcji: ${err.message}`);
-      return []; // Zwracamy pustą tablicę
+      return [];
     }
   };
   // Funkcja formatująca datę na osi X
@@ -915,7 +1030,9 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
           fetchAllMinuteData(params.symbol),
           fetchAll15mData(params.symbol, startDate, endDate),
           fetchAll1hData(params.symbol, startDate, endDate),
-          fetchTransactions(instance?.id || instance?._id),
+          fetchTransactions(
+            instance?.instanceId || instance?.id || instance?._id
+          ),
         ]);
 
       if (!minuteData || minuteData.length === 0) {
@@ -1115,38 +1232,48 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
                   connectNulls={true}
                 />
 
-                {/* Renderowanie markerów transakcji */}
-                {transactions.map((tx) => (
-                  <React.Fragment key={tx.id}>
-                    {/* Marker otwarcia transakcji */}
-                    <ReferenceLine
-                      x={tx.openTime}
-                      stroke={tx.type === "BUY" ? "#4CAF50" : "#F44336"}
-                      strokeDasharray="3 3"
-                      label={{
-                        value: `${tx.type} @ ${tx.openPrice.toFixed(2)}`,
-                        position: "insideTopLeft",
-                        fill: tx.type === "BUY" ? "#4CAF50" : "#F44336",
-                        fontSize: 12,
-                      }}
-                    />
+                {/* Znajdź kod renderowania markerów transakcji i zamień na poniższy: */}
+                {transactions && transactions.length > 0 ? (
+                  transactions.map((tx) => (
+                    <React.Fragment key={tx.id}>
+                      {/* Marker otwarcia transakcji */}
+                      {tx.openTime && (
+                        <ReferenceLine
+                          x={tx.openTime}
+                          stroke="#4CAF50"
+                          strokeDasharray="3 3"
+                          label={{
+                            value: `WEJŚCIE @ ${
+                              tx.openPrice ? tx.openPrice.toFixed(2) : "?"
+                            }`,
+                            position: "insideTopLeft",
+                            fill: "#4CAF50",
+                            fontSize: 12,
+                          }}
+                        />
+                      )}
 
-                    {/* Marker zamknięcia transakcji (jeśli istnieje) */}
-                    {tx.closeTime && (
-                      <ReferenceLine
-                        x={tx.closeTime}
-                        stroke="#FF9800"
-                        strokeDasharray="3 3"
-                        label={{
-                          value: `EXIT @ ${tx.closePrice.toFixed(2)}`,
-                          position: "insideTopRight",
-                          fill: "#FF9800",
-                          fontSize: 12,
-                        }}
-                      />
-                    )}
-                  </React.Fragment>
-                ))}
+                      {/* Marker zamknięcia transakcji (jeśli istnieje) */}
+                      {tx.closeTime && (
+                        <ReferenceLine
+                          x={tx.closeTime}
+                          stroke="#FF9800"
+                          strokeDasharray="3 3"
+                          label={{
+                            value: `WYJŚCIE @ ${
+                              tx.closePrice ? tx.closePrice.toFixed(2) : "?"
+                            }`,
+                            position: "insideTopRight",
+                            fill: "#FF9800",
+                            fontSize: 12,
+                          }}
+                        />
+                      )}
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <React.Fragment></React.Fragment>
+                )}
 
                 {/* Suwak do przewijania */}
                 <Brush
