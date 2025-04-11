@@ -31,6 +31,9 @@ const CreateInstanceForm = () => {
         signals: {
           checkEMATrend: true,
           minEntryTimeGap: 7200000, // 2 godziny w milisekundach
+          enableTrailingStop: true, // Nowe pole: czy włączyć trailing stop
+          trailingStop: 0.02, // Nowe pole: wartość trailing stopu (2%)
+          trailingStopDelay: 300000, // Nowe pole: opóźnienie 5 minut w milisekundach
         },
         capitalAllocation: {
           firstEntry: 0.1,
@@ -132,6 +135,21 @@ const CreateInstanceForm = () => {
     if (type === "checkbox") {
       actualValue = checked;
     } else if (name === "minEntryTimeGap") {
+      const numValue = parseInt(value, 10);
+      if (!isNaN(numValue)) {
+        actualValue = numValue * 60 * 1000; // Konwersja z minut na milisekundy
+      } else {
+        return; // Przerwij jeśli wartość nie jest liczbą
+      }
+    } else if (name === "trailingStop") {
+      // Konwertuj wartość procentową na dziesiętną (np. 2% -> 0.02)
+      const numValue = parseFloat(value) / 100;
+      if (!isNaN(numValue)) {
+        actualValue = numValue;
+      } else {
+        return; // Przerwij jeśli wartość nie jest liczbą
+      }
+    } else if (name === "trailingStopDelay") {
       const numValue = parseInt(value, 10);
       if (!isNaN(numValue)) {
         actualValue = numValue * 60 * 1000; // Konwersja z minut na milisekundy
@@ -307,6 +325,9 @@ const CreateInstanceForm = () => {
             signals: {
               checkEMATrend: true,
               minEntryTimeGap: 7200000, // 2 godziny w milisekundach
+              enableTrailingStop: true,
+              trailingStop: 0.02,
+              trailingStopDelay: 300000,
             },
             capitalAllocation: {
               firstEntry: 0.1,
@@ -557,10 +578,75 @@ const CreateInstanceForm = () => {
               />
             </div>
 
+            {/* Nowe pola dla trailing stopu */}
+            <div className="form-group checkbox-group">
+              <input
+                type="checkbox"
+                id="enableTrailingStop"
+                name="enableTrailingStop"
+                checked={
+                  newInstance.strategy.parameters.signals.enableTrailingStop
+                }
+                onChange={handleSignalsChange}
+              />
+              <label htmlFor="enableTrailingStop">Włącz trailing stop</label>
+            </div>
+
+            {newInstance.strategy.parameters.signals.enableTrailingStop && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="trailingStop">
+                    Wartość trailing stopu (%):
+                  </label>
+                  <input
+                    type="number"
+                    id="trailingStop"
+                    name="trailingStop"
+                    value={
+                      newInstance.strategy.parameters.signals.trailingStop * 100
+                    }
+                    onChange={handleSignalsChange}
+                    min="0.5"
+                    max="10"
+                    step="0.1"
+                  />
+                  <div className="field-description">
+                    Procentowy spadek od maksimum, który aktywuje wyjście z
+                    pozycji (0.5%-10%)
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="trailingStopDelay">
+                    Opóźnienie aktywacji (minuty):
+                  </label>
+                  <input
+                    type="number"
+                    id="trailingStopDelay"
+                    name="trailingStopDelay"
+                    value={
+                      newInstance.strategy.parameters.signals
+                        .trailingStopDelay /
+                      (60 * 1000)
+                    }
+                    onChange={handleSignalsChange}
+                    min="0"
+                    max="60"
+                    step="1"
+                  />
+                  <div className="field-description">
+                    Czas oczekiwania przed aktywacją trailing stopu po
+                    przekroczeniu górnej bandy (0-60 minut)
+                  </div>
+                </div>
+              </>
+            )}
+
             <p className="section-description">
               Te parametry określają, jak sygnały są filtrowane i przetwarzane.
               Sprawdzanie trendu EMA zapewnia, że wejścia są zgodne z głównym
-              trendem. Minimalny odstęp zapobiega zbyt częstym wejściom.
+              trendem. Trailing stop automatycznie zamyka pozycję, gdy cena
+              spadnie o określony procent od maksimum.
             </p>
           </div>
         )}
