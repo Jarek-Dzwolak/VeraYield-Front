@@ -4,58 +4,17 @@ import InstanceOverview from "../components/dashboard/InstanceOverview";
 import BotTransactions from "../components/dashboard/BotTransactions";
 import ActionPanel from "../components/dashboard/ActionPanel";
 import TechnicalAnalysisChart from "../components/dashboard/TechnicalAnalysisChart";
+import InstanceConfigDisplay from "../components/dashboard/InstanceConfigDisplay";
 
 import "./Dashboard.css";
-
-// Configuration constants
-const DEFAULT_PAIR = "BTCUSDT";
-const PRICE_REFRESH_INTERVAL = 600000; // 10 minutes in milliseconds
 
 const Dashboard = () => {
   // Application state
   const [isConnected, setIsConnected] = useState(true);
-  const [currentPrice, setCurrentPrice] = useState(null);
   const [selectedInstance, setSelectedInstance] = useState(null);
   const [chartActive, setChartActive] = useState(false);
-  const [lastUpdateTime, setLastUpdateTime] = useState(new Date());
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Optimized price fetching function with useCallback to prevent
-  // creating a new function on each render
-  const fetchCurrentPrice = useCallback(async () => {
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        console.warn("No authentication token found");
-        return;
-      }
-
-      console.log("Fetching current price...");
-      const response = await fetch(`/api/v1/market/ticker/${DEFAULT_PAIR}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        console.error(`HTTP error ${response.status} when fetching price`);
-        setIsConnected(false);
-        return;
-      }
-
-      const data = await response.json();
-      if (data && data.price) {
-        setCurrentPrice(parseFloat(data.price));
-        setIsConnected(true);
-        setLastUpdateTime(new Date());
-        console.log("Price updated:", data.price);
-      }
-    } catch (error) {
-      console.error("Error fetching price:", error);
-      setIsConnected(false);
-    }
-  }, []);
 
   // Screen size checking
   useEffect(() => {
@@ -66,19 +25,6 @@ const Dashboard = () => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  // Effect for fetching current price - only on first render
-  // and then every 10 minutes
-  useEffect(() => {
-    // Call immediately on first render
-    fetchCurrentPrice();
-
-    // Set interval for 10 minutes
-    const intervalId = setInterval(fetchCurrentPrice, PRICE_REFRESH_INTERVAL);
-
-    // Cleanup function
-    return () => clearInterval(intervalId);
-  }, [fetchCurrentPrice]);
 
   // Instance selection handler - memoized to avoid re-renders
   const handleInstanceSelect = useCallback(
@@ -138,42 +84,15 @@ const Dashboard = () => {
     [isConnected]
   );
 
-  // Memoized price card
-  const priceCard = useMemo(
-    () => (
-      <div className="dashboard-card price-card">
-        <div className="card-header">
-          <div className="card-header-with-line">
-            {isMobile && <div className="vertical-line"></div>}
-            <h2>BTC/USDT Price</h2>
-          </div>
-        </div>
-        <div className="card-content">
-          <div className="price-content">
-            <div className="price-value-large">
-              ${currentPrice ? currentPrice.toFixed(2) : "--"}
-            </div>
-            <div className="last-updated">
-              Last updated: {lastUpdateTime.toLocaleTimeString()}
-              <span className="refresh-interval-note">
-                {" (Updates every 10 minutes)"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    ),
-    [currentPrice, lastUpdateTime, isMobile]
-  );
-
   return (
     <div className="dashboard-container">
-      {/* Header - memoized */}
       {dashboardHeader}
 
       <div className="dashboard-grid">
-        {/* Price card - memoized */}
-        {priceCard}
+        {/* Konfiguracja instancji */}
+        <div className="dashboard-card config-card">
+          <InstanceConfigDisplay instance={selectedInstance} />
+        </div>
 
         {/* Instances card */}
         <div className="dashboard-card instance-overview-card">
@@ -232,7 +151,7 @@ const Dashboard = () => {
               <TechnicalAnalysisChart
                 key={`chart-${
                   selectedInstance?._id || "no-instance"
-                }-${Date.now()}`} // Add timestamp to ensure React recreates the component
+                }-${Date.now()}`}
                 instance={selectedInstance}
                 isActive={chartActive && selectedInstance !== null}
                 onToggle={toggleChart}

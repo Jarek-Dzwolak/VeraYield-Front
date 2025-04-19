@@ -1,0 +1,142 @@
+/* src/components/dashboard/InstanceConfigDisplay.css */
+.instance-config {
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.instance-config .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: var(--card-bg-darker);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.instance-config .card-header h2 {
+  font-size: 1rem;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.instance-config .card-content {
+  padding: 0.75rem;
+  overflow-y: auto;
+  max-height: 300px;
+}
+
+.instance-config .config-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.instance-config .config-section {
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.instance-config .config-section h3 {
+  margin-top: 0;
+  margin-bottom: 0.6rem;
+  font-size: 0.95rem;
+  color: var(--gold-color);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.4rem;
+}
+
+.instance-config .config-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.6rem;
+}
+
+.instance-config .config-item {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.3rem 0;
+}
+
+.instance-config .config-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.instance-config .config-value {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.instance-config .config-value.boolean {
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+.instance-config .loading-indicator,
+.instance-config .error-message,
+.instance-config .empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  text-align: center;
+  height: 180px;
+}
+
+.instance-config .loading-indicator {
+  color: var(--text-secondary);
+}
+
+.instance-config .error-message {
+  color: var(--red-color);
+}
+
+.instance-config .empty-state {
+  color: var(--text-secondary);
+}
+
+.instance-config .test-mode-badge {
+  background-color: rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  color: var(--gold-color);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.instance-config .financials {
+  background-color: rgba(76, 175, 80, 0.08);
+  border: 1px solid rgba(76, 175, 80, 0.15);
+}
+
+@media (min-width: 768px) {
+  .instance-config .config-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .instance-config .card-content {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .instance-config .config-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.2rem;
+  }
+
+  .instance-config .config-label {
+    margin-bottom: 0.1rem;
+  }
+}
