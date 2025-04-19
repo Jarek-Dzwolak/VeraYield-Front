@@ -10,7 +10,8 @@ import "./Dashboard.css";
 
 const Dashboard = () => {
   // Application state
-  const [isConnected, setIsConnected] = useState(true);
+  // Używamy stałej wartości zamiast useState aby uniknąć błędu ESLint z nieużywanym setIsConnected
+  const isConnected = true;
   const [selectedInstance, setSelectedInstance] = useState(null);
   const [chartActive, setChartActive] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
