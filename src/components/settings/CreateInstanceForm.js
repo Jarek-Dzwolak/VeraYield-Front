@@ -336,6 +336,7 @@ const CreateInstanceForm = () => {
               enableTrailingStop: true,
               trailingStop: 0.02,
               trailingStopDelay: 300000,
+              minFirstEntryDuration: 3600000, // 1 godzina w milisekundach
             },
             capitalAllocation: {
               firstEntry: 0.1,
@@ -553,7 +554,7 @@ const CreateInstanceForm = () => {
           </div>
         )}
 
-        {/* Parametry sygnałów */}
+        {/* Parametry sygnałów - Poprawiona wersja, wszystkie pola dostępne niezależnie */}
         {activeTab === "signals" && (
           <div className="form-section">
             <div className="form-group checkbox-group">
@@ -586,7 +587,30 @@ const CreateInstanceForm = () => {
               />
             </div>
 
-            {/* Nowe pola dla trailing stopu */}
+            <div className="form-group">
+              <label htmlFor="minFirstEntryDuration">
+                Minimalny czas trwania pierwszej pozycji (minuty):
+              </label>
+              <input
+                type="number"
+                id="minFirstEntryDuration"
+                name="minFirstEntryDuration"
+                value={
+                  newInstance.strategy.parameters.signals
+                    .minFirstEntryDuration /
+                  (60 * 1000)
+                }
+                onChange={handleSignalsChange}
+                min="0"
+                max="1440"
+                step="1"
+              />
+              <div className="field-description">
+                Minimalny czas trwania pierwszej pozycji przed możliwością
+                wyjścia (0-24 godzin)
+              </div>
+            </div>
+
             <div className="form-group checkbox-group">
               <input
                 type="checkbox"
@@ -600,78 +624,63 @@ const CreateInstanceForm = () => {
               <label htmlFor="enableTrailingStop">Włącz trailing stop</label>
             </div>
 
-            {newInstance.strategy.parameters.signals.enableTrailingStop && (
-              <>
-                <div className="form-group">
-                  <label htmlFor="trailingStop">
-                    Wartość trailing stopu (%):
-                  </label>
-                  <input
-                    type="number"
-                    id="trailingStop"
-                    name="trailingStop"
-                    value={
-                      newInstance.strategy.parameters.signals.trailingStop * 100
-                    }
-                    onChange={handleSignalsChange}
-                    min="0.5"
-                    max="10"
-                    step="0.1"
-                  />
-                  <div className="field-description">
-                    Procentowy spadek od maksimum, który aktywuje wyjście z
-                    pozycji (0.5%-10%)
-                  </div>
-                </div>
+            {/* Parametry trailing stopu - zawsze widoczne */}
+            <div className="form-group">
+              <label htmlFor="trailingStop">Wartość trailing stopu (%):</label>
+              <input
+                type="number"
+                id="trailingStop"
+                name="trailingStop"
+                value={
+                  newInstance.strategy.parameters.signals.trailingStop * 100
+                }
+                onChange={handleSignalsChange}
+                min="0.5"
+                max="10"
+                step="0.1"
+              />
+              <div className="field-description">
+                Procentowy spadek od maksimum, który aktywuje wyjście z pozycji
+                (0.5%-10%)
+                {!newInstance.strategy.parameters.signals
+                  .enableTrailingStop && (
+                  <span className="warning-text">
+                    {" "}
+                    (Trailing stop jest wyłączony)
+                  </span>
+                )}
+              </div>
+            </div>
 
-                <div className="form-group">
-                  <label htmlFor="trailingStopDelay">
-                    Opóźnienie aktywacji (minuty):
-                  </label>
-                  <input
-                    type="number"
-                    id="trailingStopDelay"
-                    name="trailingStopDelay"
-                    value={
-                      newInstance.strategy.parameters.signals
-                        .trailingStopDelay /
-                      (60 * 1000)
-                    }
-                    onChange={handleSignalsChange}
-                    min="0"
-                    max="60"
-                    step="1"
-                  />
-                  <div className="field-description">
-                    Czas oczekiwania przed aktywacją trailing stopu po
-                    przekroczeniu górnej bandy (0-60 minut)
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="minFirstEntryDuration">
-                      Minimalny czas trwania pierwszej pozycji (minuty):
-                    </label>
-                    <input
-                      type="number"
-                      id="minFirstEntryDuration"
-                      name="minFirstEntryDuration"
-                      value={
-                        newInstance.strategy.parameters.signals
-                          .minFirstEntryDuration /
-                        (60 * 1000)
-                      }
-                      onChange={handleSignalsChange}
-                      min="0"
-                      max="1440"
-                      step="1"
-                    />
-                    <div className="field-description">
-                      Minimalny czas trwania pierwszej pozycji przed możliwością
-                      wyjścia (0-24 godzin)
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
+            <div className="form-group">
+              <label htmlFor="trailingStopDelay">
+                Opóźnienie aktywacji trailing stopu (minuty):
+              </label>
+              <input
+                type="number"
+                id="trailingStopDelay"
+                name="trailingStopDelay"
+                value={
+                  newInstance.strategy.parameters.signals.trailingStopDelay /
+                  (60 * 1000)
+                }
+                onChange={handleSignalsChange}
+                min="0"
+                max="60"
+                step="1"
+              />
+              <div className="field-description">
+                Czas oczekiwania przed aktywacją trailing stopu po przekroczeniu
+                górnej bandy (0-60 minut)
+                {!newInstance.strategy.parameters.signals
+                  .enableTrailingStop && (
+                  <span className="warning-text">
+                    {" "}
+                    (Trailing stop jest wyłączony)
+                  </span>
+                )}
+              </div>
+            </div>
 
             <p className="section-description">
               Te parametry określają, jak sygnały są filtrowane i przetwarzane.
