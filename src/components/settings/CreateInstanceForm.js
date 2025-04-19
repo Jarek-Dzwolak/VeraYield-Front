@@ -34,6 +34,7 @@ const CreateInstanceForm = () => {
           enableTrailingStop: true, // Nowe pole: czy włączyć trailing stop
           trailingStop: 0.02, // Nowe pole: wartość trailing stopu (2%)
           trailingStopDelay: 300000, // Nowe pole: opóźnienie 5 minut w milisekundach
+          minFirstEntryDuration: 3600000, // 1 godzina w milisekundach
         },
         capitalAllocation: {
           firstEntry: 0.1,
@@ -150,6 +151,13 @@ const CreateInstanceForm = () => {
         return; // Przerwij jeśli wartość nie jest liczbą
       }
     } else if (name === "trailingStopDelay") {
+      const numValue = parseInt(value, 10);
+      if (!isNaN(numValue)) {
+        actualValue = numValue * 60 * 1000; // Konwersja z minut na milisekundy
+      } else {
+        return; // Przerwij jeśli wartość nie jest liczbą
+      }
+    } else if (name === "minFirstEntryDuration") {
       const numValue = parseInt(value, 10);
       if (!isNaN(numValue)) {
         actualValue = numValue * 60 * 1000; // Konwersja z minut na milisekundy
@@ -637,6 +645,29 @@ const CreateInstanceForm = () => {
                   <div className="field-description">
                     Czas oczekiwania przed aktywacją trailing stopu po
                     przekroczeniu górnej bandy (0-60 minut)
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="minFirstEntryDuration">
+                      Minimalny czas trwania pierwszej pozycji (minuty):
+                    </label>
+                    <input
+                      type="number"
+                      id="minFirstEntryDuration"
+                      name="minFirstEntryDuration"
+                      value={
+                        newInstance.strategy.parameters.signals
+                          .minFirstEntryDuration /
+                        (60 * 1000)
+                      }
+                      onChange={handleSignalsChange}
+                      min="0"
+                      max="1440"
+                      step="1"
+                    />
+                    <div className="field-description">
+                      Minimalny czas trwania pierwszej pozycji przed możliwością
+                      wyjścia (0-24 godzin)
+                    </div>
                   </div>
                 </div>
               </>
