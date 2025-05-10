@@ -272,7 +272,7 @@ const CreateInstanceForm = () => {
     // Przygotuj dane do wysłania
     const dataToSend = {
       ...newInstance,
-      testMode: true,
+      testMode: false,
       strategy: {
         ...newInstance.strategy,
         parameters: {
