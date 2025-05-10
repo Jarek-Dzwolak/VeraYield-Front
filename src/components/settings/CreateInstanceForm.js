@@ -21,7 +21,6 @@ const CreateInstanceForm = () => {
       apiSecret: "",
       leverage: 3,
       marginMode: "isolated",
-      testnet: true,
     },
     strategy: {
       type: "hurst",
@@ -576,20 +575,6 @@ const CreateInstanceForm = () => {
               <div className="field-description">
                 Isolated - oddzielny margin dla każdej pozycji, Cross - wspólny
                 margin dla wszystkich pozycji
-              </div>
-            </div>
-
-            <div className="form-group checkbox-group">
-              <input
-                type="checkbox"
-                id="testnet"
-                name="testnet"
-                checked={newInstance.bybitConfig.testnet}
-                onChange={handleBybitChange}
-              />
-              <label htmlFor="testnet">Testnet ByBit</label>
-              <div className="field-description">
-                Używaj testnet do testowania strategii bez ryzyka utraty środków
               </div>
             </div>
 
