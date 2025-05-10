@@ -8,13 +8,21 @@ const CreateInstanceForm = () => {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [activeTab, setActiveTab] = useState("basic");
+  const [showApiSecret, setShowApiSecret] = useState(false); // Dla ukrywania/pokazywania API Secret
 
   // Stan dla nowej instancji
   const [newInstance, setNewInstance] = useState({
     name: "",
     symbol: "BTCUSDT",
     testMode: true,
-    initialFunds: 10000, // Dodane pole: początkowe środki
+    initialFunds: 10000,
+    bybitConfig: {
+      apiKey: "",
+      apiSecret: "",
+      leverage: 3,
+      marginMode: "isolated",
+      testnet: true,
+    },
     strategy: {
       type: "hurst",
       parameters: {
@@ -30,11 +38,11 @@ const CreateInstanceForm = () => {
         },
         signals: {
           checkEMATrend: true,
-          minEntryTimeGap: 7200000, // 2 godziny w milisekundach
-          enableTrailingStop: true, // Nowe pole: czy włączyć trailing stop
-          trailingStop: 0.02, // Nowe pole: wartość trailing stopu (2%)
-          trailingStopDelay: 300000, // Nowe pole: opóźnienie 5 minut w milisekundach
-          minFirstEntryDuration: 3600000, // 1 godzina w milisekundach
+          minEntryTimeGap: 7200000,
+          enableTrailingStop: true,
+          trailingStop: 0.02,
+          trailingStopDelay: 300000,
+          minFirstEntryDuration: 3600000,
         },
         capitalAllocation: {
           firstEntry: 0.1,
@@ -50,7 +58,6 @@ const CreateInstanceForm = () => {
   const handleBasicInfoChange = (e) => {
     const { name, value } = e.target;
 
-    // Dla pola initialFunds, konwertujemy na liczbę
     if (name === "initialFunds") {
       const numValue = parseInt(value, 10);
       if (!isNaN(numValue) && numValue >= 0) {
@@ -67,12 +74,29 @@ const CreateInstanceForm = () => {
     }
   };
 
+  // Nowy handler dla konfiguracji ByBit
+  const handleBybitChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    let actualValue = type === "checkbox" ? checked : value;
+
+    // Dla leverage, konwertuj na liczbę
+    if (name === "leverage") {
+      actualValue = parseInt(value, 10) || 3;
+    }
+
+    setNewInstance((prev) => ({
+      ...prev,
+      bybitConfig: {
+        ...prev.bybitConfig,
+        [name]: actualValue,
+      },
+    }));
+  };
+
   const handleHurstChange = (e) => {
     const { name, value } = e.target;
 
-    // Pozwól na wpisywanie przecinków, kropek i cyfr oraz pustego pola
     if (name === "periods") {
-      // Dla okresów, tylko liczby całkowite
       const numValue = parseInt(value, 10);
       if (!isNaN(numValue)) {
         setNewInstance((prev) => ({
@@ -90,7 +114,6 @@ const CreateInstanceForm = () => {
         }));
       }
     } else {
-      // Dla współczynników odchylenia, akceptujemy zarówno kropkę jak i przecinek
       setNewInstance((prev) => ({
         ...prev,
         strategy: {
@@ -131,38 +154,36 @@ const CreateInstanceForm = () => {
   const handleSignalsChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    // Dla checkboxów używamy wartości checked, dla innych inputs wartości value
     let actualValue;
     if (type === "checkbox") {
       actualValue = checked;
     } else if (name === "minEntryTimeGap") {
       const numValue = parseInt(value, 10);
       if (!isNaN(numValue)) {
-        actualValue = numValue * 60 * 1000; // Konwersja z minut na milisekundy
+        actualValue = numValue * 60 * 1000;
       } else {
-        return; // Przerwij jeśli wartość nie jest liczbą
+        return;
       }
     } else if (name === "trailingStop") {
-      // Konwertuj wartość procentową na dziesiętną (np. 2% -> 0.02)
       const numValue = parseFloat(value) / 100;
       if (!isNaN(numValue)) {
         actualValue = numValue;
       } else {
-        return; // Przerwij jeśli wartość nie jest liczbą
+        return;
       }
     } else if (name === "trailingStopDelay") {
       const numValue = parseInt(value, 10);
       if (!isNaN(numValue)) {
-        actualValue = numValue * 60 * 1000; // Konwersja z minut na milisekundy
+        actualValue = numValue * 60 * 1000;
       } else {
-        return; // Przerwij jeśli wartość nie jest liczbą
+        return;
       }
     } else if (name === "minFirstEntryDuration") {
       const numValue = parseInt(value, 10);
       if (!isNaN(numValue)) {
-        actualValue = numValue * 60 * 1000; // Konwersja z minut na milisekundy
+        actualValue = numValue * 60 * 1000;
       } else {
-        return; // Przerwij jeśli wartość nie jest liczbą
+        return;
       }
     } else {
       actualValue = value;
@@ -185,7 +206,6 @@ const CreateInstanceForm = () => {
 
   const handleCapitalChange = (e) => {
     const { name, value } = e.target;
-    // Konwertuj wartość procentową na dziesiętną (np. 10% -> 0.1)
     const numValue = parseFloat(value) / 100;
 
     if (!isNaN(numValue)) {
@@ -249,10 +269,10 @@ const CreateInstanceForm = () => {
       return;
     }
 
-    // Przygotuj dane do wysłania, zamieniając przecinki na kropki w wartościach zmiennoprzecinkowych
+    // Przygotuj dane do wysłania
     const dataToSend = {
       ...newInstance,
-      testMode: true, // Upewnij się, że tryb testowy jest zawsze włączony
+      testMode: true,
       strategy: {
         ...newInstance.strategy,
         parameters: {
@@ -284,7 +304,6 @@ const CreateInstanceForm = () => {
         throw new Error("Brak autoryzacji");
       }
 
-      // Logowanie danych przed wysłaniem dla celów debugowania
       console.log(
         "Wysyłanie danych instancji:",
         JSON.stringify(dataToSend, null, 2)
@@ -305,7 +324,7 @@ const CreateInstanceForm = () => {
           errorData.message || "Błąd podczas tworzenia instancji"
         );
       }
-      // eslint-disable-next-line no-unused-vars
+
       const data = await response.json();
       setSuccessMessage(
         `Instancja "${newInstance.name}" została utworzona pomyślnie!`
@@ -317,6 +336,13 @@ const CreateInstanceForm = () => {
         symbol: "BTCUSDT",
         testMode: true,
         initialFunds: 10000,
+        bybitConfig: {
+          apiKey: "",
+          apiSecret: "",
+          leverage: 3,
+          marginMode: "isolated",
+          testnet: true,
+        },
         strategy: {
           type: "hurst",
           parameters: {
@@ -332,11 +358,11 @@ const CreateInstanceForm = () => {
             },
             signals: {
               checkEMATrend: true,
-              minEntryTimeGap: 7200000, // 2 godziny w milisekundach
+              minEntryTimeGap: 7200000,
               enableTrailingStop: true,
               trailingStop: 0.02,
               trailingStopDelay: 300000,
-              minFirstEntryDuration: 3600000, // 1 godzina w milisekundach
+              minFirstEntryDuration: 3600000,
             },
             capitalAllocation: {
               firstEntry: 0.1,
@@ -350,7 +376,6 @@ const CreateInstanceForm = () => {
 
       setIsLoading(false);
 
-      // Wyczyść wiadomość po 5 sekundach
       setTimeout(() => {
         setSuccessMessage("");
       }, 5000);
@@ -369,6 +394,12 @@ const CreateInstanceForm = () => {
           onClick={() => setActiveTab("basic")}
         >
           Podstawowe
+        </button>
+        <button
+          className={`tab ${activeTab === "bybit" ? "active" : ""}`}
+          onClick={() => setActiveTab("bybit")}
+        >
+          ByBit
         </button>
         <button
           className={`tab ${activeTab === "hurst" ? "active" : ""}`}
@@ -441,7 +472,6 @@ const CreateInstanceForm = () => {
               </select>
             </div>
 
-            {/* Nowe pole dla początkowych środków */}
             <div className="form-group">
               <label htmlFor="initialFunds">Początkowe środki:</label>
               <input
@@ -461,6 +491,113 @@ const CreateInstanceForm = () => {
             <p className="section-description">
               Wybierz unikalną nazwę dla Twojej instancji, parę handlową oraz
               początkową kwotę środków na testowanie strategii.
+            </p>
+          </div>
+        )}
+
+        {/* Konfiguracja ByBit - NOWA SEKCJA */}
+        {activeTab === "bybit" && (
+          <div className="form-section">
+            <div className="form-group">
+              <label htmlFor="apiKey">API Key:</label>
+              <input
+                type="text"
+                id="apiKey"
+                name="apiKey"
+                value={newInstance.bybitConfig.apiKey}
+                onChange={handleBybitChange}
+                placeholder="Wprowadź API Key z ByBit"
+              />
+              <div className="field-description">
+                Klucz API z ByBit do wykonywania prawdziwych zleceń
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="apiSecret">API Secret:</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showApiSecret ? "text" : "password"}
+                  id="apiSecret"
+                  name="apiSecret"
+                  value={newInstance.bybitConfig.apiSecret}
+                  onChange={handleBybitChange}
+                  placeholder="Wprowadź API Secret z ByBit"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiSecret(!showApiSecret)}
+                  style={{
+                    position: "absolute",
+                    right: "10px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                  }}
+                >
+                  {showApiSecret ? "Ukryj" : "Pokaż"}
+                </button>
+              </div>
+              <div className="field-description">
+                Sekretny klucz API - przechowywany bezpiecznie
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="leverage">Dźwignia:</label>
+              <input
+                type="number"
+                id="leverage"
+                name="leverage"
+                value={newInstance.bybitConfig.leverage}
+                onChange={handleBybitChange}
+                min="1"
+                max="100"
+                step="1"
+              />
+              <div className="field-description">
+                Mnożnik dźwigni dla kontraktów futures (1-100x)
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="marginMode">Tryb marginu:</label>
+              <select
+                id="marginMode"
+                name="marginMode"
+                value={newInstance.bybitConfig.marginMode}
+                onChange={handleBybitChange}
+              >
+                <option value="isolated">Isolated (Izolowany)</option>
+                <option value="cross">Cross (Krzyżowy)</option>
+              </select>
+              <div className="field-description">
+                Isolated - oddzielny margin dla każdej pozycji, Cross - wspólny
+                margin dla wszystkich pozycji
+              </div>
+            </div>
+
+            <div className="form-group checkbox-group">
+              <input
+                type="checkbox"
+                id="testnet"
+                name="testnet"
+                checked={newInstance.bybitConfig.testnet}
+                onChange={handleBybitChange}
+              />
+              <label htmlFor="testnet">Testnet ByBit</label>
+              <div className="field-description">
+                Używaj testnet do testowania strategii bez ryzyka utraty środków
+              </div>
+            </div>
+
+            <p className="section-description">
+              Konfiguracja ByBit umożliwia wykonywanie prawdziwych zleceń na
+              giełdzie. Upewnij się, że API Key ma odpowiednie uprawnienia do
+              handlu futures. UWAGA: Używaj testnet do testowania! Prawdziwy
+              handel wiąże się z ryzykiem.
             </p>
           </div>
         )}
@@ -554,7 +691,7 @@ const CreateInstanceForm = () => {
           </div>
         )}
 
-        {/* Parametry sygnałów - Poprawiona wersja, wszystkie pola dostępne niezależnie */}
+        {/* Parametry sygnałów */}
         {activeTab === "signals" && (
           <div className="form-section">
             <div className="form-group checkbox-group">
@@ -624,7 +761,6 @@ const CreateInstanceForm = () => {
               <label htmlFor="enableTrailingStop">Włącz trailing stop</label>
             </div>
 
-            {/* Parametry trailing stopu - zawsze widoczne */}
             <div className="form-group">
               <label htmlFor="trailingStop">Wartość trailing stopu (%):</label>
               <input
