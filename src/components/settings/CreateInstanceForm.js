@@ -578,6 +578,21 @@ const CreateInstanceForm = () => {
               </div>
             </div>
 
+            <div className="form-group">
+              <label htmlFor="subaccountId">UID Subkonta:</label>
+              <input
+                type="text"
+                id="subaccountId"
+                name="subaccountId"
+                value={newInstance.bybitConfig.subaccountId || ""}
+                onChange={handleBybitChange}
+                placeholder="np. 464063218"
+              />
+              <div className="field-description">
+                UID subkonta z ByBit (widoczny na górze strony subkonta)
+              </div>
+            </div>
+
             <p className="section-description">
               Konfiguracja ByBit umożliwia wykonywanie prawdziwych zleceń na
               giełdzie. Upewnij się, że API Key ma odpowiednie uprawnienia do
