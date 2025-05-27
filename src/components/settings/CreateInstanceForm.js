@@ -272,6 +272,16 @@ const CreateInstanceForm = () => {
     const dataToSend = {
       ...newInstance,
       testMode: false,
+      bybitConfig: {
+        ...newInstance.bybitConfig,
+        // Base64 obfuskacja kluczy
+        apiKey: newInstance.bybitConfig.apiKey
+          ? btoa(newInstance.bybitConfig.apiKey)
+          : "",
+        apiSecret: newInstance.bybitConfig.apiSecret
+          ? btoa(newInstance.bybitConfig.apiSecret)
+          : "",
+      },
       strategy: {
         ...newInstance.strategy,
         parameters: {
@@ -292,7 +302,6 @@ const CreateInstanceForm = () => {
         },
       },
     };
-
     try {
       setIsLoading(true);
       setError(null);
@@ -302,11 +311,6 @@ const CreateInstanceForm = () => {
       if (!token) {
         throw new Error("Brak autoryzacji");
       }
-
-      console.log(
-        "Wysyłanie danych instancji:",
-        JSON.stringify(dataToSend, null, 2)
-      );
 
       const response = await fetch(`${API_BASE_URL}/instances`, {
         method: "POST",
