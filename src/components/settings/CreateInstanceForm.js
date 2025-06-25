@@ -16,7 +16,7 @@ const CreateInstanceForm = () => {
     symbol: "BTCUSDT",
     testMode: true,
     initialFunds: 10000,
-    bybitConfig: {
+    phemexConfig: {
       apiKey: "",
       apiSecret: "",
       leverage: 3,
@@ -73,8 +73,8 @@ const CreateInstanceForm = () => {
     }
   };
 
-  // Nowy handler dla konfiguracji ByBit
-  const handleBybitChange = (e) => {
+  // Handler dla konfiguracji Phemex
+  const handlePhemexChange = (e) => {
     const { name, value, type, checked } = e.target;
     let actualValue = type === "checkbox" ? checked : value;
 
@@ -85,8 +85,8 @@ const CreateInstanceForm = () => {
 
     setNewInstance((prev) => ({
       ...prev,
-      bybitConfig: {
-        ...prev.bybitConfig,
+      phemexConfig: {
+        ...prev.phemexConfig,
         [name]: actualValue,
       },
     }));
@@ -272,14 +272,14 @@ const CreateInstanceForm = () => {
     const dataToSend = {
       ...newInstance,
       testMode: false,
-      bybitConfig: {
-        ...newInstance.bybitConfig,
+      phemexConfig: {
+        ...newInstance.phemexConfig,
         // Base64 obfuskacja kluczy
-        apiKey: newInstance.bybitConfig.apiKey
-          ? btoa(newInstance.bybitConfig.apiKey)
+        apiKey: newInstance.phemexConfig.apiKey
+          ? btoa(newInstance.phemexConfig.apiKey)
           : "",
-        apiSecret: newInstance.bybitConfig.apiSecret
-          ? btoa(newInstance.bybitConfig.apiSecret)
+        apiSecret: newInstance.phemexConfig.apiSecret
+          ? btoa(newInstance.phemexConfig.apiSecret)
           : "",
       },
       strategy: {
@@ -339,12 +339,11 @@ const CreateInstanceForm = () => {
         symbol: "BTCUSDT",
         testMode: true,
         initialFunds: 10000,
-        bybitConfig: {
+        phemexConfig: {
           apiKey: "",
           apiSecret: "",
           leverage: 3,
           marginMode: "isolated",
-          testnet: true,
         },
         strategy: {
           type: "hurst",
@@ -399,10 +398,10 @@ const CreateInstanceForm = () => {
           Podstawowe
         </button>
         <button
-          className={`tab ${activeTab === "bybit" ? "active" : ""}`}
-          onClick={() => setActiveTab("bybit")}
+          className={`tab ${activeTab === "phemex" ? "active" : ""}`}
+          onClick={() => setActiveTab("phemex")}
         >
-          ByBit
+          Phemex
         </button>
         <button
           className={`tab ${activeTab === "hurst" ? "active" : ""}`}
@@ -498,8 +497,8 @@ const CreateInstanceForm = () => {
           </div>
         )}
 
-        {/* Konfiguracja ByBit - NOWA SEKCJA */}
-        {activeTab === "bybit" && (
+        {/* Konfiguracja Phemex */}
+        {activeTab === "phemex" && (
           <div className="form-section">
             <div className="form-group">
               <label htmlFor="apiKey">API Key:</label>
@@ -507,12 +506,12 @@ const CreateInstanceForm = () => {
                 type="text"
                 id="apiKey"
                 name="apiKey"
-                value={newInstance.bybitConfig.apiKey}
-                onChange={handleBybitChange}
-                placeholder="Wprowadź API Key z ByBit"
+                value={newInstance.phemexConfig.apiKey}
+                onChange={handlePhemexChange}
+                placeholder="Wprowadź API Key z Phemex"
               />
               <div className="field-description">
-                Klucz API z ByBit do wykonywania prawdziwych zleceń
+                Klucz API z Phemex do wykonywania prawdziwych zleceń
               </div>
             </div>
 
@@ -523,9 +522,9 @@ const CreateInstanceForm = () => {
                   type={showApiSecret ? "text" : "password"}
                   id="apiSecret"
                   name="apiSecret"
-                  value={newInstance.bybitConfig.apiSecret}
-                  onChange={handleBybitChange}
-                  placeholder="Wprowadź API Secret z ByBit"
+                  value={newInstance.phemexConfig.apiSecret}
+                  onChange={handlePhemexChange}
+                  placeholder="Wprowadź API Secret z Phemex"
                 />
                 <button
                   type="button"
@@ -554,8 +553,8 @@ const CreateInstanceForm = () => {
                 type="number"
                 id="leverage"
                 name="leverage"
-                value={newInstance.bybitConfig.leverage}
-                onChange={handleBybitChange}
+                value={newInstance.phemexConfig.leverage}
+                onChange={handlePhemexChange}
                 min="1"
                 max="100"
                 step="1"
@@ -570,8 +569,8 @@ const CreateInstanceForm = () => {
               <select
                 id="marginMode"
                 name="marginMode"
-                value={newInstance.bybitConfig.marginMode}
-                onChange={handleBybitChange}
+                value={newInstance.phemexConfig.marginMode}
+                onChange={handlePhemexChange}
               >
                 <option value="isolated">Isolated (Izolowany)</option>
                 <option value="cross">Cross (Krzyżowy)</option>
@@ -588,20 +587,20 @@ const CreateInstanceForm = () => {
                 type="text"
                 id="subaccountId"
                 name="subaccountId"
-                value={newInstance.bybitConfig.subaccountId || ""}
-                onChange={handleBybitChange}
+                value={newInstance.phemexConfig.subaccountId || ""}
+                onChange={handlePhemexChange}
                 placeholder="np. 464063218"
               />
               <div className="field-description">
-                UID subkonta z ByBit (widoczny na górze strony subkonta)
+                UID subkonta z Phemex (opcjonalne)
               </div>
             </div>
 
             <p className="section-description">
-              Konfiguracja ByBit umożliwia wykonywanie prawdziwych zleceń na
+              Konfiguracja Phemex umożliwia wykonywanie prawdziwych zleceń na
               giełdzie. Upewnij się, że API Key ma odpowiednie uprawnienia do
-              handlu futures. UWAGA: Używaj testnet do testowania! Prawdziwy
-              handel wiąże się z ryzykiem.
+              handlu futures. UWAGA: Prawdziwy handel wiąże się z ryzykiem
+              finansowym.
             </p>
           </div>
         )}
