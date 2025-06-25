@@ -274,13 +274,9 @@ const CreateInstanceForm = () => {
       testMode: false,
       phemexConfig: {
         ...newInstance.phemexConfig,
-        // Base64 obfuskacja kluczy
-        apiKey: newInstance.phemexConfig.apiKey
-          ? btoa(newInstance.phemexConfig.apiKey)
-          : "",
-        apiSecret: newInstance.phemexConfig.apiSecret
-          ? btoa(newInstance.phemexConfig.apiSecret)
-          : "",
+        // Wyślij klucze bez kodowania Base64
+        apiKey: newInstance.phemexConfig.apiKey || "",
+        apiSecret: newInstance.phemexConfig.apiSecret || "",
       },
       strategy: {
         ...newInstance.strategy,
