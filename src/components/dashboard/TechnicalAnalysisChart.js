@@ -126,6 +126,49 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     }
   };
 
+  // NOWA FUNKCJA - dodaj tuż po fetchCandleData
+  const fetchHurstHistoryFromBackend = async (instanceId, days = 4) => {
+    try {
+      setLoadingStatus(`Pobieranie kanału Hursta z backendu...`);
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Brak tokenu autoryzacyjnego");
+      }
+
+      const url = `${API_BASE_URL}/frontend-data/hurst-history/${instanceId}?days=${days}`;
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Błąd HTTP ${response.status} podczas pobierania kanału Hursta`
+        );
+      }
+
+      const data = await response.json();
+
+      if (!data.success || !data.history) {
+        throw new Error("Nieprawidłowa odpowiedź serwera");
+      }
+
+      console.log(
+        `Pobrano ${data.history.length} punktów kanału Hursta z backendu`
+      );
+      setLoadingStatus(`Pobrano kanał Hursta: ${data.history.length} punktów`);
+
+      return data.history; // [{time, upperBand, lowerBand, price}, ...]
+    } catch (err) {
+      console.error("Error fetching Hurst history from backend:", err);
+      setLoadingStatus(`Błąd kanału Hursta: ${err.message}`);
+      throw err;
+    }
+  };
+
   // Usprawnione pobieranie danych 1-minutowych z podziałem na mniejsze fragmenty
   const fetchAllMinuteData = async (symbol) => {
     try {
@@ -300,100 +343,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     } catch (err) {
       console.error("Error fetching all minute data:", err);
       setLoadingStatus(`Błąd pobierania danych: ${err.message}`);
-      throw err;
-    }
-  };
-
-  // Usprawnione pobieranie danych 15-minutowych
-  const fetchAll15mData = async (symbol, startDate, endDate) => {
-    try {
-      setLoadingStatus(`Pobieranie danych 15m...`);
-
-      // 15m ma maksymalnie (4 dni * 24 godziny * 4 świece na godzinę) = 384 świece
-      // Podzielmy na 3 zapytania aby zapewnić dokładność i kompletność danych
-      const timeRange = endDate.getTime() - startDate.getTime();
-      const fragment1End = new Date(startDate.getTime() + timeRange / 3);
-      const fragment2End = new Date(startDate.getTime() + (timeRange * 2) / 3);
-
-      const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-      // Pierwsze zapytanie
-      const firstThird = await fetchCandleData(
-        symbol,
-        "15m",
-        startDate,
-        fragment1End
-      );
-      await delay(1000); // Czekaj 1 sekundę
-
-      // Drugie zapytanie
-      const secondThird = await fetchCandleData(
-        symbol,
-        "15m",
-        fragment1End,
-        fragment2End
-      );
-      await delay(1000); // Czekaj 1 sekundę
-
-      // Trzecie zapytanie
-      const lastThird = await fetchCandleData(
-        symbol,
-        "15m",
-        fragment2End,
-        endDate
-      );
-
-      // Łączymy wszystkie części
-      let allCandles = [...firstThird, ...secondThird, ...lastThird];
-
-      // Sortowanie i deduplikacja
-      allCandles.sort((a, b) => a.time - b.time);
-
-      // Deduplikacja po czasie
-      const uniqueMap = new Map();
-      const uniqueCandles = [];
-
-      for (const candle of allCandles) {
-        if (!uniqueMap.has(candle.time)) {
-          uniqueMap.set(candle.time, true);
-          uniqueCandles.push(candle);
-        }
-      }
-
-      console.log(
-        `Pobrano łącznie ${uniqueCandles.length} unikalnych świec 15m`
-      );
-
-      // Weryfikacja ciągłości danych
-      const fifteenMinInMillis = 15 * 60 * 1000;
-      let gapsCount = 0;
-
-      for (let i = 1; i < uniqueCandles.length; i++) {
-        const timeDiff =
-          uniqueCandles[i].originalTime - uniqueCandles[i - 1].originalTime;
-        if (timeDiff > fifteenMinInMillis * 2) {
-          // Więcej niż 30 minut
-          gapsCount++;
-          console.warn(
-            `Znaleziono lukę w danych 15m: ${new Date(
-              uniqueCandles[i - 1].originalTime
-            ).toLocaleString()} -> ${new Date(
-              uniqueCandles[i].originalTime
-            ).toLocaleString()}, różnica: ${
-              timeDiff / fifteenMinInMillis
-            } okresy 15m`
-          );
-        }
-      }
-
-      if (gapsCount > 0) {
-        console.warn(`Wykryto ${gapsCount} luk w danych 15m`);
-      }
-
-      return uniqueCandles;
-    } catch (err) {
-      console.error("Error fetching 15m data:", err);
-      setLoadingStatus(`Błąd pobierania danych 15m: ${err.message}`);
       throw err;
     }
   };
@@ -701,76 +650,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     }
   };
 
-  // Usprawnione obliczenie kanału Hursta
-  const calculateHurstChannel = (data, params) => {
-    try {
-      setLoadingStatus(
-        `Obliczanie kanału Hursta (periods: ${params.periods})...`
-      );
-
-      if (!data || data.length < params.periods) {
-        console.warn(
-          `Za mało danych do obliczenia kanału Hursta: ${data?.length} < ${params.periods}`
-        );
-        return { upper: [], lower: [], middle: [] };
-      }
-
-      // Obliczanie średniej kroczącej
-      const movingAvg = [];
-      for (let i = params.periods - 1; i < data.length; i++) {
-        let sum = 0;
-        for (let j = 0; j < params.periods; j++) {
-          sum += data[i - j].close;
-        }
-        const avg = sum / params.periods;
-        movingAvg.push({
-          time: data[i].time,
-          value: avg,
-          originalTime: data[i].originalTime,
-        });
-      }
-
-      // Obliczanie odchylenia standardowego
-      const deviations = [];
-      for (let i = params.periods - 1; i < data.length; i++) {
-        let sumSquares = 0;
-        for (let j = 0; j < params.periods; j++) {
-          const diff =
-            data[i - j].close - movingAvg[i - (params.periods - 1)].value;
-          sumSquares += diff * diff;
-        }
-        const stdDev = Math.sqrt(sumSquares / params.periods);
-        deviations.push({
-          time: data[i].time,
-          value: stdDev,
-          originalTime: data[i].originalTime,
-        });
-      }
-
-      // Tworzenie górnej i dolnej bandy
-      const upper = movingAvg.map((point, index) => ({
-        time: point.time,
-        value:
-          point.value + deviations[index].value * params.upperDeviationFactor,
-        originalTime: point.originalTime,
-      }));
-
-      const lower = movingAvg.map((point, index) => ({
-        time: point.time,
-        value:
-          point.value - deviations[index].value * params.lowerDeviationFactor,
-        originalTime: point.originalTime,
-      }));
-
-      console.log(`Obliczono kanał Hursta: ${upper.length} punktów`);
-      return { upper, lower, middle: movingAvg };
-    } catch (err) {
-      console.error("Error calculating Hurst channel:", err);
-      setLoadingStatus(`Błąd obliczania kanału Hursta: ${err.message}`);
-      return { upper: [], lower: [], middle: [] };
-    }
-  };
-
   // Obliczenie EMA
   const calculateEMA = (data, periods) => {
     try {
@@ -1072,19 +951,14 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     setLoadingStatus("Inicjalizacja wykresu...");
 
     try {
-      // Pobierz parametry
       const params = getInstanceParams();
       console.log("Instance parameters:", params);
 
-      // Ustaw wspólny zakres dat dla wszystkich zapytań
       const endDate = new Date();
       console.log("Bieżący czas pobrania:", endDate.toLocaleString());
-
-      // Dodaj 10 minut buforowego czasu aby upewnić się, że pobieramy najnowsze dane
       endDate.setMinutes(endDate.getMinutes() + 10);
 
       const startDate = new Date();
-      // Dokładnie 4 dni wstecz, od aktualnego czasu
       startDate.setDate(endDate.getDate() - 4);
       console.log(
         "Zakres pobrania od",
@@ -1092,16 +966,20 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         "do",
         endDate.toLocaleString()
       );
-      setLoadingStatus("Pobieranie danych dla wszystkich interwałów...");
 
-      // Pobierz dane wszystkich trzech interwałów i transakcje równolegle
-      const [minuteData, data15mResult, data1hResult, txData] =
+      setLoadingStatus("Pobieranie danych...");
+
+      // Pobierz dane: minutowe (cena), godzinowe (EMA), transakcje i kanał Hursta z backendu
+      const [minuteData, data1hResult, txData, hurstHistory] =
         await Promise.all([
           fetchAllMinuteData(params.symbol),
-          fetchAll15mData(params.symbol, startDate, endDate),
           fetchAll1hData(params.symbol, startDate, endDate),
           fetchTransactions(
             instance?.instanceId || instance?.id || instance?._id
+          ),
+          fetchHurstHistoryFromBackend(
+            instance?.instanceId || instance?.id || instance?._id,
+            4
           ),
         ]);
 
@@ -1109,41 +987,36 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         throw new Error("Nie udało się pobrać danych minutowych");
       }
 
-      setLoadingStatus("Obliczanie wskaźników technicznych...");
+      setLoadingStatus("Obliczanie EMA...");
 
-      // Oblicz kanał Hursta na danych 15-minutowych
-      const hurstChannel = calculateHurstChannel(data15mResult, {
-        periods: params.hurst.periods,
-        upperDeviationFactor: params.hurst.upperDeviationFactor,
-        lowerDeviationFactor: params.hurst.lowerDeviationFactor,
-      });
-
-      // Oblicz EMA na danych godzinowych
+      // Oblicz tylko EMA na danych godzinowych
       const emaResult = calculateEMA(data1hResult, params.ema.periods);
 
       setLoadingStatus("Przygotowywanie danych do wykresu...");
 
-      // Interpoluj dane wskaźników do formatu TradingView
-      const interpolatedHurstUpper = interpolateIndicatorValues(
-        minuteData,
-        hurstChannel.upper
-      );
-      const interpolatedHurstLower = interpolateIndicatorValues(
-        minuteData,
-        hurstChannel.lower
-      );
+      // Przekształć dane kanału Hursta z backendu
+      const interpolatedHurstUpper = hurstHistory.map((point) => ({
+        time: point.time,
+        value: point.upperBand,
+      }));
+
+      const interpolatedHurstLower = hurstHistory.map((point) => ({
+        time: point.time,
+        value: point.lowerBand,
+      }));
+
+      // Interpoluj EMA do formatu TradingView
       const interpolatedEMA = interpolateIndicatorValues(minuteData, emaResult);
 
       // Przygotuj markery transakcji
       const transactionMarkers = prepareTransactionMarkers(minuteData, txData);
 
-      // Logi diagnostyczne
       console.log(
         `Przygotowane dane: Price ${minuteData.length}, HurstUpper ${interpolatedHurstUpper.length}, ` +
           `HurstLower ${interpolatedHurstLower.length}, EMA ${interpolatedEMA.length}, Markers ${transactionMarkers.length}`
       );
 
-      // Stwórz wykres, jeśli jeszcze nie istnieje
+      // Stwórz wykres
       createAndSetupChart();
 
       // Renderuj dane na wykresie
@@ -1157,7 +1030,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
       setLoading(false);
       setLoadingStatus(
-        `Wykres załadowany: ${minuteData.length} świec, ${data15mResult.length} świec 15m, ${data1hResult.length} świec 1h`
+        `Wykres załadowany: ${minuteData.length} świec, ${data1hResult.length} świec 1h, ${hurstHistory.length} punktów kanału Hursta`
       );
     } catch (err) {
       console.error("Error initializing chart:", err);
@@ -1166,7 +1039,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       setLoading(false);
     }
   };
-
   // Efekty dla inicjalizacji i czyszczenia wykresu
   useEffect(() => {
     if (isActive) {
