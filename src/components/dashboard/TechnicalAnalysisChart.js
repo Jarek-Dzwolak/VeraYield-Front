@@ -728,31 +728,32 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
     const markers = [];
 
-    // Dla każdej transakcji
     transactionsData.forEach((tx) => {
-      if (tx.openTime) {
-        const closestEntryIndex = findClosestTimeIndex(minuteData, tx.openTime);
-        if (closestEntryIndex !== -1) {
-          const candle = minuteData[closestEntryIndex];
-          markers.push({
-            time: candle.time,
-            position: "belowBar",
-            color: "#4CAF50",
-            shape: "arrowUp",
-            text: `WEJŚCIE (${tx.type || "unknown"}) @ ${
-              tx.openPrice?.toFixed(2) || "?"
-            }`,
-            id: `entry-${tx.id}`,
-            size: 2,
-          });
-          console.log(
-            `Dodano marker wejścia (${tx.type}) przy cenie ${
-              tx.openPrice
-            } w czasie ${new Date(tx.openTime).toLocaleString()}`
+      // ✅ POKAŻ WSZYSTKIE WEJŚCIA z tablicy entries
+      if (tx.entries && tx.entries.length > 0) {
+        tx.entries.forEach((entry, index) => {
+          const closestEntryIndex = findClosestTimeIndex(
+            minuteData,
+            entry.timestamp
           );
-        }
+          if (closestEntryIndex !== -1) {
+            const candle = minuteData[closestEntryIndex];
+            markers.push({
+              time: candle.time,
+              position: "belowBar",
+              color: "#4CAF50",
+              shape: "arrowUp",
+              text: `WEJŚCIE ${index + 1} (${entry.subType || "unknown"}) @ ${
+                entry.price?.toFixed(2) || "?"
+              }`,
+              id: `entry-${tx.id}-${index}`,
+              size: 2,
+            });
+          }
+        });
       }
 
+      // ✅ WYJŚCIE bez zmian
       if (tx.closeTime) {
         const closestExitIndex = findClosestTimeIndex(minuteData, tx.closeTime);
         if (closestExitIndex !== -1) {
@@ -766,11 +767,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
             id: `exit-${tx.id}`,
             size: 2,
           });
-          console.log(
-            `Dodano marker wyjścia przy cenie ${
-              tx.closePrice
-            } w czasie ${new Date(tx.closeTime).toLocaleString()}`
-          );
         }
       }
     });
