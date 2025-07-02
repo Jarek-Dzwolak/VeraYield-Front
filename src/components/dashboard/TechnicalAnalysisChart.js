@@ -618,6 +618,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
           openPrice: entryPrice ? Number(entryPrice) : null,
           closePrice: position.exitPrice ? Number(position.exitPrice) : null,
           status: position.status || (position.exitTime ? "CLOSED" : "OPEN"),
+          entries: position.entries || [], // ✅ DODAJ TĘ LINIĘ
         };
       });
 
@@ -726,11 +727,26 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       return [];
     }
 
+    console.log("🎯 DEBUG: prepareTransactionMarkers received:", {
+      transactionsCount: transactionsData.length,
+      firstTransaction: transactionsData[0],
+      entriesInFirstTx: transactionsData[0]?.entries?.length || 0,
+    });
+
     const markers = [];
 
     transactionsData.forEach((tx) => {
+      console.log(`🔍 Processing transaction ${tx.id}:`, {
+        hasEntries: !!(tx.entries && tx.entries.length > 0),
+        entriesCount: tx.entries?.length || 0,
+        hasCloseTime: !!tx.closeTime,
+      });
+
       // ✅ POKAŻ WSZYSTKIE WEJŚCIA z tablicy entries
       if (tx.entries && tx.entries.length > 0) {
+        console.log(
+          `📈 Adding ${tx.entries.length} entry markers for tx ${tx.id}`
+        );
         tx.entries.forEach((entry, index) => {
           const closestEntryIndex = findClosestTimeIndex(
             minuteData,
