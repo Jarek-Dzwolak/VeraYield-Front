@@ -471,6 +471,21 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
               : positionsData.history
               ? positionsData.history
               : [];
+
+            // ✅ NAPRAW mapowanie entries - API używa innych nazw pól
+            positions = positions.map((position) => ({
+              ...position,
+              entries: position.entries
+                ? position.entries.map((entry) => ({
+                    signalId: entry.signalId,
+                    price: entry.price,
+                    timestamp: entry.time, // API: "time" → kod: "timestamp"
+                    allocation: entry.allocation,
+                    amount: entry.amount,
+                    subType: entry.type, // API: "type" → kod: "subType"
+                  }))
+                : [],
+            }));
           } catch (e) {
             console.error("Error parsing positions data:", e);
           }
