@@ -726,6 +726,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
     return closestIndex;
   };
+
   // Funkcja do przygotowania markerów transakcji dla wykresu
   const prepareTransactionMarkers = (minuteData, transactionsData) => {
     if (
@@ -757,13 +758,30 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         console.log(
           `📈 Adding ${tx.entries.length} entry markers for tx ${tx.id}`
         );
+
         tx.entries.forEach((entry, index) => {
+          console.log(`🕒 Processing entry ${index + 1}:`, {
+            subType: entry.subType,
+            timestamp: entry.timestamp,
+            date: new Date(entry.timestamp).toLocaleString(),
+            price: entry.price,
+          });
+
           const closestEntryIndex = findClosestTimeIndex(
             minuteData,
             entry.timestamp
           );
+
+          console.log(`📍 Closest index result for entry ${index + 1}:`, {
+            closestIndex: closestEntryIndex,
+            found: closestEntryIndex !== -1,
+          });
+
           if (closestEntryIndex !== -1) {
             const candle = minuteData[closestEntryIndex];
+            console.log(
+              `✅ Adding marker for entry ${index + 1} at time ${candle.time}`
+            );
             markers.push({
               time: candle.time,
               position: "belowBar",
@@ -775,15 +793,29 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
               id: `entry-${tx.id}-${index}`,
               size: 2,
             });
+          } else {
+            console.log(
+              `❌ Skipping entry ${index + 1} - no matching time found`
+            );
           }
         });
+      } else {
+        console.log(`❌ No entries found for transaction ${tx.id}`);
       }
 
       // ✅ WYJŚCIE bez zmian
       if (tx.closeTime) {
+        console.log(`📉 Processing exit for tx ${tx.id}`);
         const closestExitIndex = findClosestTimeIndex(minuteData, tx.closeTime);
+
+        console.log(`📍 Closest index result for exit:`, {
+          closestIndex: closestExitIndex,
+          found: closestExitIndex !== -1,
+        });
+
         if (closestExitIndex !== -1) {
           const candle = minuteData[closestExitIndex];
+          console.log(`✅ Adding exit marker at time ${candle.time}`);
           markers.push({
             time: candle.time,
             position: "aboveBar",
@@ -793,10 +825,13 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
             id: `exit-${tx.id}`,
             size: 2,
           });
+        } else {
+          console.log(`❌ Skipping exit - no matching time found`);
         }
       }
     });
 
+    console.log(`🎯 Final markers created: ${markers.length}`);
     return markers;
   };
 
