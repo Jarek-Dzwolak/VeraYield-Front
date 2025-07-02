@@ -817,9 +817,9 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
               position: "belowBar",
               color: "#4CAF50",
               shape: "arrowUp",
-              text: `WEJŚCIE ${index + 1} (${entry.subType || "unknown"}) @ ${
-                entry.price?.toFixed(2) || "?"
-              }`,
+              text: `${
+                ["FIRST", "SECOND", "THIRD"][index] || `ENTRY ${index + 1}`
+              } @ ${entry.price?.toFixed(2) || "?"}`,
               id: `entry-${tx.id}-${index}`,
               size: 2,
             });
@@ -851,7 +851,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
             position: "aboveBar",
             color: "#FF9800",
             shape: "arrowDown",
-            text: `WYJŚCIE @ ${tx.closePrice?.toFixed(2) || "?"}`,
+            text: `EXIT @ ${tx.closePrice?.toFixed(2) || "?"}`,
             id: `exit-${tx.id}`,
             size: 2,
           });
