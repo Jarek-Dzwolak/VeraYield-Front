@@ -713,9 +713,19 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       }
     }
 
+    // Sprawdź czy różnica nie jest większa niż 2 minuty (120000 ms)
+    // Jeśli tak, zwróć -1 (nie znaleziono pasującego punktu)
+    if (minDiff > 120000) {
+      console.log(
+        `⚠️ Time difference too large: ${minDiff}ms for timestamp ${new Date(
+          targetTime
+        ).toLocaleString()}`
+      );
+      return -1;
+    }
+
     return closestIndex;
   };
-
   // Funkcja do przygotowania markerów transakcji dla wykresu
   const prepareTransactionMarkers = (minuteData, transactionsData) => {
     if (
