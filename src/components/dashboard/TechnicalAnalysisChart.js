@@ -508,6 +508,21 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
               (s) => s.type === "exit" && s.status === "executed"
             );
 
+            console.log("🔧 DEBUG API response:", {
+              totalSignals: signalsData.signals.length,
+              entrySignalsCount: entrySignals.length,
+              exitSignalsCount: exitSignals.length,
+              firstEntrySignal: entrySignals[0],
+              sampleEntryFields: entrySignals[0]
+                ? {
+                    hasTimestamp: !!entrySignals[0].timestamp,
+                    hasSubType: !!entrySignals[0].subType,
+                    timestamp: entrySignals[0].timestamp,
+                    subType: entrySignals[0].subType,
+                  }
+                : "no entry signals",
+            });
+
             console.log(
               `Found ${entrySignals.length} entry signals and ${exitSignals.length} exit signals`
             );
