@@ -3,13 +3,13 @@ import { createChart, CrosshairMode } from "lightweight-charts";
 import "./TechnicalAnalysisChart.css";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || "/api/v1";
+const DATA_RANGE_DAYS = 7;
 
 const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState("");
 
-  // Refs dla wykresu
   const chartContainerRef = useRef();
   const chartInstanceRef = useRef(null);
   const seriesRefs = useRef({
@@ -20,7 +20,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     markers: null,
   });
 
-  // Pobieranie parametrów z instancji
   const getInstanceParams = () => {
     if (!instance || !instance.strategy || !instance.strategy.parameters) {
       return {
@@ -53,7 +52,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     };
   };
 
-  // Usprawniona funkcja do pobierania danych za określony okres
   const fetchCandleData = async (symbol, interval, startDate, endDate) => {
     try {
       setLoadingStatus(`Pobieranie danych ${interval} dla ${symbol}...`);
@@ -94,7 +92,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         );
       }
 
-      // Przygotuj dane w odpowiednim formacie
       const candles = data.candles || (Array.isArray(data) ? data : []);
 
       if (candles.length === 0) {
@@ -102,17 +99,16 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         throw new Error(`Brak świec w danych ${interval}`);
       }
 
-      // Formatujemy dane dla wykresu
       const formattedData = candles.map((candle) => ({
-        time: new Date(candle.openTime).getTime() / 1000, // TradingView używa timestamp w sekundach
+        time: new Date(candle.openTime).getTime() / 1000,
         date: new Date(candle.openTime).toLocaleString(),
         open: parseFloat(candle.open),
         high: parseFloat(candle.high),
         low: parseFloat(candle.low),
         close: parseFloat(candle.close),
-        value: parseFloat(candle.close), // Dodajemy property 'value' dla linii
+        value: parseFloat(candle.close),
         volume: parseFloat(candle.volume),
-        originalTime: new Date(candle.openTime).getTime(), // Zachowujemy oryginalny timestamp w ms
+        originalTime: new Date(candle.openTime).getTime(),
       }));
 
       console.log(`Processed ${formattedData.length} candles for ${interval}`);
@@ -126,8 +122,10 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     }
   };
 
-  // NOWA FUNKCJA - dodaj tuż po fetchCandleData
-  const fetchHurstHistoryFromBackend = async (instanceId, days = 4) => {
+  const fetchHurstHistoryFromBackend = async (
+    instanceId,
+    days = DATA_RANGE_DAYS
+  ) => {
     try {
       setLoadingStatus(`Pobieranie kanału Hursta z backendu...`);
 
@@ -161,7 +159,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       );
       setLoadingStatus(`Pobrano kanał Hursta: ${data.history.length} punktów`);
 
-      return data.history; // [{time, upperBand, lowerBand, price}, ...]
+      return data.history;
     } catch (err) {
       console.error("Error fetching Hurst history from backend:", err);
       setLoadingStatus(`Błąd kanału Hursta: ${err.message}`);
@@ -169,64 +167,52 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     }
   };
 
-  // Usprawnione pobieranie danych 1-minutowych z podziałem na mniejsze fragmenty
   const fetchAllMinuteData = async (symbol) => {
     try {
-      // Aktualny czas
       const endDate = new Date();
 
-      // Dokładnie 4 dni wstecz
       const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 4);
+      startDate.setDate(endDate.getDate() - DATA_RANGE_DAYS);
       startDate.setHours(0, 0, 0, 0);
 
-      // Upewnij się, że mamy czas teraz (dla endDate) i dokładnie 4*24h wstecz (dla startDate)
       console.log(`Start date: ${startDate.toLocaleString()}`);
       console.log(`End date: ${endDate.toLocaleString()}`);
 
-      setLoadingStatus("Pobieranie danych minutowych za 4 dni...");
+      setLoadingStatus(
+        `Pobieranie danych minutowych za ${DATA_RANGE_DAYS} dni...`
+      );
 
-      // W ciągu 4 dni mamy maksymalnie 4*24*60 = 5760 minut
-      // Podzielmy ten okres na 8 fragmentów po 12 godzin (720 minut) każdy
-      // Zapewni to, że każde zapytanie zwróci mniej niż 1000 świec
       const fragments = [];
 
-      // Dzielimy 4-dniowy okres na fragmenty
-      for (let i = 4; i >= 0; i--) {
-        // Dla każdego dnia tworzymy dwa 12-godzinne fragmenty
-        // Fragment 1: 00:00 - 12:00
+      for (let i = DATA_RANGE_DAYS; i >= 0; i--) {
         const day = new Date(endDate);
         day.setDate(day.getDate() - i);
-        day.setHours(0, 0, 0, 0); // Początek dnia
+        day.setHours(0, 0, 0, 0);
 
         const dayMid = new Date(day);
-        dayMid.setHours(12, 0, 0, 0); // Południe
+        dayMid.setHours(12, 0, 0, 0);
 
         const dayEnd = new Date(day);
-        dayEnd.setHours(23, 59, 59, 999); // Koniec dnia
+        dayEnd.setHours(23, 59, 59, 999);
 
-        // Nie dodawaj fragmentów w przyszłości
         if (day < endDate) {
           fragments.push({
             start: day,
-            end: i === 0 ? endDate : dayMid, // Dla dzisiejszego dnia, koniec to aktualny czas
+            end: i === 0 ? endDate : dayMid,
           });
         }
 
-        // Nie dodawaj fragmentów w przyszłości
         if (dayMid < endDate) {
           fragments.push({
             start: dayMid,
-            end: i === 0 ? endDate : dayEnd, // Dla dzisiejszego dnia, koniec to aktualny czas
+            end: i === 0 ? endDate : dayEnd,
           });
         }
       }
       let allCandles = [];
 
-      // Dodaj opóźnienie między zapytaniami aby respektować limit 1 zapytanie/sekundę
       const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-      // Pobierz dane dla każdego fragmentu sekwencyjnie z opóźnieniem 1 sekundy
       for (let i = 0; i < fragments.length; i++) {
         const fragment = fragments[i];
         const isLastFragment = i === fragments.length - 1;
@@ -271,21 +257,17 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
               new Date(lastCandle.originalTime).toLocaleString()
             );
           }
-          // Poczekaj 1 sekundę przed następnym zapytaniem
           if (i < fragments.length - 1) {
             await delay(1000);
           }
         } catch (err) {
           console.warn(`Błąd pobierania pakietu ${i + 1}: ${err.message}`);
-          // Poczekaj 1 sekundę przed próbą pobrania kolejnego fragmentu
           await delay(1000);
         }
       }
 
-      // Sortowanie i deduplikacja
       allCandles.sort((a, b) => a.time - b.time);
 
-      // Deduplikacja po czasie
       const uniqueMap = new Map();
       const uniqueCandles = [];
 
@@ -297,10 +279,9 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       }
 
       setLoadingStatus(
-        `Pobrano łącznie ${uniqueCandles.length} unikalnych świec minutowych za 4 dni`
+        `Pobrano łącznie ${uniqueCandles.length} unikalnych świec minutowych za ${DATA_RANGE_DAYS} dni`
       );
 
-      // Sprawdź czy pokrywamy pełne 4 dni
       if (uniqueCandles.length > 0) {
         const firstCandleTime = new Date(uniqueCandles[0].originalTime);
         const lastCandleTime = new Date(
@@ -315,7 +296,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         console.log(`Pokryte dni: ${daysCovered.toFixed(2)}`);
       }
 
-      // Weryfikacja ciągłości danych - wykrywanie luk
       const minuteInMillis = 60 * 1000;
       let gapsCount = 0;
 
@@ -323,7 +303,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         const timeDiff =
           uniqueCandles[i].originalTime - uniqueCandles[i - 1].originalTime;
         if (timeDiff > minuteInMillis * 2) {
-          // Jeśli przerwa większa niż 2 minuty
           gapsCount++;
           console.warn(
             `Znaleziono lukę w danych: ${new Date(
@@ -347,38 +326,30 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     }
   };
 
-  // Usprawnione pobieranie danych godzinowych
   const fetchAll1hData = async (symbol, startDate, endDate) => {
     try {
       setLoadingStatus(`Pobieranie danych 1h...`);
 
-      // 1h ma maksymalnie (4 dni * 24 godziny) = 96 świec
-      // Podzielmy na 2 zapytania aby zapewnić dokładność
       const midPoint = new Date(
         startDate.getTime() + (endDate.getTime() - startDate.getTime()) / 2
       );
 
       const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-      // Pierwsze zapytanie
       const firstHalf = await fetchCandleData(
         symbol,
         "1h",
         startDate,
         midPoint
       );
-      await delay(1000); // Czekaj 1 sekundę
+      await delay(1000);
 
-      // Drugie zapytanie
       const secondHalf = await fetchCandleData(symbol, "1h", midPoint, endDate);
 
-      // Łączymy obie części
       let allCandles = [...firstHalf, ...secondHalf];
 
-      // Sortowanie i deduplikacja
       allCandles.sort((a, b) => a.time - b.time);
 
-      // Deduplikacja po czasie
       const uniqueMap = new Map();
       const uniqueCandles = [];
 
@@ -393,7 +364,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         `Pobrano łącznie ${uniqueCandles.length} unikalnych świec 1h`
       );
 
-      // Weryfikacja ciągłości danych
       const hourInMillis = 60 * 60 * 1000;
       let gapsCount = 0;
 
@@ -401,7 +371,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         const timeDiff =
           uniqueCandles[i].originalTime - uniqueCandles[i - 1].originalTime;
         if (timeDiff > hourInMillis * 2) {
-          // Więcej niż 2 godziny
           gapsCount++;
           console.warn(
             `Znaleziono lukę w danych 1h: ${new Date(
@@ -425,7 +394,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     }
   };
 
-  // Pobieranie rzeczywistych transakcji
   const fetchTransactions = async (instanceId) => {
     try {
       setLoadingStatus("Pobieranie historii transakcji...");
@@ -436,7 +404,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         throw new Error("Brak tokenu autoryzacyjnego");
       }
 
-      // Najpierw spróbujmy pobrać dane z historii pozycji (zamknięte pozycje)
       const positionsUrl = `${API_BASE_URL}/signals/positions/history?instanceId=${instanceId}`;
       console.log(`Fetching position history from:`, positionsUrl);
 
@@ -447,7 +414,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         },
       });
 
-      // Pokaż szczegóły odpowiedzi HTTP
       console.log(
         "Position history response status:",
         positionsResponse.status
@@ -456,7 +422,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       let positions = [];
 
       if (positionsResponse.ok) {
-        // Pobierz surową odpowiedź i pokaż ją
         const rawText = await positionsResponse.text();
         console.log("Raw API response:", rawText);
 
@@ -465,24 +430,22 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
             const positionsData = JSON.parse(rawText);
             console.log("Parsed positions data:", positionsData);
 
-            // Obsługa obu formatów API (tablica lub obiekt z tablicą history)
             positions = Array.isArray(positionsData)
               ? positionsData
               : positionsData.history
               ? positionsData.history
               : [];
 
-            // ✅ NAPRAW mapowanie entries - API używa innych nazw pól
             positions = positions.map((position) => ({
               ...position,
               entries: position.entries
                 ? position.entries.map((entry) => ({
                     signalId: entry.signalId,
                     price: entry.price,
-                    timestamp: entry.time, // API: "time" → kod: "timestamp"
+                    timestamp: entry.time,
                     allocation: entry.allocation,
                     amount: entry.amount,
-                    subType: entry.type, // API: "type" → kod: "subType"
+                    subType: entry.type,
                   }))
                 : [],
             }));
@@ -492,11 +455,9 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         }
       }
 
-      // Jeśli nie znaleziono pozycji, spróbuj pobrać sygnały i zrekonstruować transakcje
       if (!positions || positions.length === 0) {
         console.log("No positions found, trying to fetch signals...");
 
-        // Pobierz sygnały dla tej instancji (zarówno wejścia jak i wyjścia)
         const signalsUrl = `${API_BASE_URL}/signals/instance/${instanceId}`;
         const signalsResponse = await fetch(signalsUrl, {
           headers: {
@@ -514,7 +475,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
             signalsData.signals &&
             signalsData.signals.length > 0
           ) {
-            // Zrekonstruuj transakcje z sygnałów
             const entrySignals = signalsData.signals.filter(
               (s) => s.type === "entry" && s.status === "executed"
             );
@@ -542,10 +502,8 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
               `Found ${entrySignals.length} entry signals and ${exitSignals.length} exit signals`
             );
 
-            // Grupuj według ID pozycji
             const positionMap = new Map();
 
-            // Dodaj wszystkie sygnały wejścia
             for (const signal of entrySignals) {
               if (signal.positionId) {
                 if (!positionMap.has(signal.positionId)) {
@@ -567,7 +525,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
               }
             }
 
-            // Dodaj sygnały wyjścia
             for (const signal of exitSignals) {
               if (signal.positionId && positionMap.has(signal.positionId)) {
                 positionMap.get(signal.positionId).exits.push({
@@ -585,15 +542,11 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
               Array.from(positionMap.values())
             );
 
-            // Konwertuj na format pozycji
             positions = Array.from(positionMap.values()).map((pos) => {
-              // Sortuj wejścia według timestamp
               pos.entries.sort((a, b) => a.timestamp - b.timestamp);
 
-              // Weź najwcześniejsze wejście jako główne
               const firstEntry = pos.entries[0];
 
-              // Weź ostatnie wyjście (jeśli istnieje)
               const lastExit =
                 pos.exits.length > 0
                   ? pos.exits.sort((a, b) => b.timestamp - a.timestamp)[0]
@@ -621,9 +574,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         return [];
       }
 
-      // Mapuj pozycje na format wykresu
       const mappedTransactions = positions.map((position) => {
-        // Oblicz średnią cenę wejścia, jeśli nie jest dostępna bezpośrednio
         let entryPrice = position.entryPrice;
         if (!entryPrice && position.entries && position.entries.length > 0) {
           const totalAllocation = position.entries.reduce(
@@ -648,11 +599,10 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
           openPrice: entryPrice ? Number(entryPrice) : null,
           closePrice: position.exitPrice ? Number(position.exitPrice) : null,
           status: position.status || (position.exitTime ? "CLOSED" : "OPEN"),
-          entries: position.entries || [], // ✅ DODAJ TĘ LINIĘ
+          entries: position.entries || [],
         };
       });
 
-      // Dodatkowe informacje o transakcjach
       console.log("Final transactions to display:", mappedTransactions);
 
       if (mappedTransactions.length > 0) {
@@ -681,7 +631,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     }
   };
 
-  // Obliczenie EMA
   const calculateEMA = (data, periods) => {
     try {
       setLoadingStatus(`Obliczanie EMA(${periods})...`);
@@ -696,7 +645,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       const k = 2 / (periods + 1);
       const emaResults = [];
 
-      // Pierwsza wartość EMA to średnia prosta
       let sum = 0;
       for (let i = 0; i < periods; i++) {
         sum += data[i].close;
@@ -708,7 +656,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         originalTime: data[periods - 1].originalTime,
       });
 
-      // Obliczanie kolejnych EMA
       for (let i = periods; i < data.length; i++) {
         const currentEMA =
           data[i].close * k + emaResults[emaResults.length - 1].value * (1 - k);
@@ -728,7 +675,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     }
   };
 
-  // Funkcja pomocnicza do znajdowania najbliższego punktu czasowego
   const findClosestTimeIndex = (data, targetTime) => {
     if (!data || data.length === 0) return -1;
 
@@ -743,8 +689,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       }
     }
 
-    // Sprawdź czy różnica nie jest większa niż 2 minuty (120000 ms)
-    // Jeśli tak, zwróć -1 (nie znaleziono pasującego punktu)
     if (minDiff > 120000) {
       console.log(
         `⚠️ Time difference too large: ${minDiff}ms for timestamp ${new Date(
@@ -757,7 +701,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     return closestIndex;
   };
 
-  // Funkcja do przygotowania markerów transakcji dla wykresu
   const prepareTransactionMarkers = (minuteData, transactionsData) => {
     if (
       !transactionsData ||
@@ -783,7 +726,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         hasCloseTime: !!tx.closeTime,
       });
 
-      // ✅ POKAŻ WSZYSTKIE WEJŚCIA z tablicy entries
       if (tx.entries && tx.entries.length > 0) {
         console.log(
           `📈 Adding ${tx.entries.length} entry markers for tx ${tx.id}`
@@ -833,7 +775,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         console.log(`❌ No entries found for transaction ${tx.id}`);
       }
 
-      // ✅ WYJŚCIE bez zmian
       if (tx.closeTime) {
         console.log(`📉 Processing exit for tx ${tx.id}`);
         const closestExitIndex = findClosestTimeIndex(minuteData, tx.closeTime);
@@ -865,7 +806,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     return markers;
   };
 
-  // Usprawniona interpolacja dla wskaźników z lepszą obsługą luk
   const interpolateIndicatorValues = (minuteData, indicatorData) => {
     if (
       !indicatorData ||
@@ -878,12 +818,9 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
     const result = [];
 
-    // Dla każdego punktu wskaźnika znajdź odpowiadający jemu punkt czasowy w danych minutowych
     for (const point of indicatorData) {
-      // Znajdź najbliższy punkt w danych minutowych
       const closestIndex = findClosestTimeIndex(minuteData, point.originalTime);
       if (closestIndex !== -1) {
-        // Użyj jego czasu (w formacie dla TradingView) i wartości wskaźnika
         result.push({
           time: minuteData[closestIndex].time,
           value: point.value,
@@ -894,11 +831,9 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     return result;
   };
 
-  // Funkcja do tworzenia i inicjalizacji wykresu
   const createAndSetupChart = () => {
     if (!chartContainerRef.current) return;
 
-    // Usuń poprzedni wykres, jeśli istnieje
     if (chartInstanceRef.current) {
       chartInstanceRef.current.remove();
       chartInstanceRef.current = null;
@@ -911,7 +846,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       };
     }
 
-    // Stwórz nowy wykres
     const chart = createChart(chartContainerRef.current, {
       height: 500,
       layout: {
@@ -939,7 +873,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       },
     });
 
-    // Dodaj serię cenową
     const lineSeries = chart.addLineSeries({
       color: "#2196f3",
       lineWidth: 2,
@@ -949,40 +882,35 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     });
     seriesRefs.current.price = lineSeries;
 
-    // Dodaj serię dla górnej bandy Hursta
     const hurstUpperSeries = chart.addLineSeries({
       color: "#4CAF50",
       lineWidth: 1.5,
-      lineStyle: 1, // przerywana
+      lineStyle: 1,
       lastValueVisible: true,
       priceLineVisible: false,
     });
     seriesRefs.current.hurstUpper = hurstUpperSeries;
 
-    // Dodaj serię dla dolnej bandy Hursta
     const hurstLowerSeries = chart.addLineSeries({
       color: "#F44336",
       lineWidth: 1.5,
-      lineStyle: 1, // przerywana
+      lineStyle: 1,
       lastValueVisible: true,
       priceLineVisible: false,
     });
     seriesRefs.current.hurstLower = hurstLowerSeries;
 
-    // Dodaj serię dla EMA
     const emaSeries = chart.addLineSeries({
       color: "#FF9800",
       lineWidth: 1.5,
-      lineStyle: 0, // ciągła
+      lineStyle: 0,
       lastValueVisible: true,
       priceLineVisible: false,
     });
     seriesRefs.current.ema = emaSeries;
 
-    // Zapisz instancję wykresu
     chartInstanceRef.current = chart;
 
-    // Dodaj obsługę zmiany rozmiaru
     const resizeObserver = new ResizeObserver(() => {
       if (chartInstanceRef.current) {
         chartInstanceRef.current.applyOptions({
@@ -992,7 +920,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     });
     resizeObserver.observe(chartContainerRef.current);
 
-    // Zwróć funkcję czyszczącą
     return () => {
       resizeObserver.disconnect();
       if (chartInstanceRef.current) {
@@ -1002,34 +929,28 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     };
   };
 
-  // Funkcja do renderowania danych na wykresie
   const renderChartData = (priceData, hurstUpper, hurstLower, ema, markers) => {
     if (!chartInstanceRef.current) return;
 
-    // Przygotuj dane dla wykresów
     const formattedPriceData = priceData.map((candle) => ({
       time: candle.time,
       value: candle.close,
     }));
 
-    // Ustaw dane dla serii
     seriesRefs.current.price.setData(formattedPriceData);
     seriesRefs.current.hurstUpper.setData(hurstUpper);
     seriesRefs.current.hurstLower.setData(hurstLower);
     seriesRefs.current.ema.setData(ema);
 
-    // Dodaj markery transakcji
     if (markers && markers.length > 0) {
       seriesRefs.current.price.setMarkers(markers);
     }
 
-    // Dostosuj widoczny zakres
     if (formattedPriceData.length > 0) {
       chartInstanceRef.current.timeScale().fitContent();
     }
   };
 
-  // Główna funkcja inicjalizacji wykresu
   const initializeChart = async () => {
     if (!isActive) return;
 
@@ -1046,7 +967,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       endDate.setMinutes(endDate.getMinutes() + 10);
 
       const startDate = new Date();
-      startDate.setDate(endDate.getDate() - 4);
+      startDate.setDate(endDate.getDate() - DATA_RANGE_DAYS);
       console.log(
         "Zakres pobrania od",
         startDate.toLocaleString(),
@@ -1056,7 +977,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
       setLoadingStatus("Pobieranie danych...");
 
-      // Pobierz dane: minutowe (cena), godzinowe (EMA), transakcje i kanał Hursta z backendu
       const [minuteData, data1hResult, txData, hurstHistory] =
         await Promise.all([
           fetchAllMinuteData(params.symbol),
@@ -1066,7 +986,7 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
           ),
           fetchHurstHistoryFromBackend(
             instance?.instanceId || instance?.id || instance?._id,
-            4
+            DATA_RANGE_DAYS
           ),
         ]);
 
@@ -1076,12 +996,10 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
 
       setLoadingStatus("Obliczanie EMA...");
 
-      // Oblicz tylko EMA na danych godzinowych
       const emaResult = calculateEMA(data1hResult, params.ema.periods);
 
       setLoadingStatus("Przygotowywanie danych do wykresu...");
 
-      // Przekształć dane kanału Hursta z backendu
       const interpolatedHurstUpper = hurstHistory.map((point) => ({
         time: point.time,
         value: point.upperBand,
@@ -1092,10 +1010,8 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
         value: point.lowerBand,
       }));
 
-      // Interpoluj EMA do formatu TradingView
       const interpolatedEMA = interpolateIndicatorValues(minuteData, emaResult);
 
-      // Przygotuj markery transakcji
       const transactionMarkers = prepareTransactionMarkers(minuteData, txData);
 
       console.log(
@@ -1103,10 +1019,8 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
           `HurstLower ${interpolatedHurstLower.length}, EMA ${interpolatedEMA.length}, Markers ${transactionMarkers.length}`
       );
 
-      // Stwórz wykres
       createAndSetupChart();
 
-      // Renderuj dane na wykresie
       renderChartData(
         minuteData,
         interpolatedHurstUpper,
@@ -1126,23 +1040,20 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
       setLoading(false);
     }
   };
-  // Efekty dla inicjalizacji i czyszczenia wykresu
+
   useEffect(() => {
     if (isActive) {
       initializeChart();
     }
 
-    // Czyszczenie przy odmontowaniu
     return () => {
       if (chartInstanceRef.current) {
         chartInstanceRef.current.remove();
         chartInstanceRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, instance]);
 
-  // Renderowanie przycisku aktywacji jeśli wykres jest nieaktywny
   if (!isActive) {
     return (
       <div className="chart-inactive">
@@ -1153,7 +1064,6 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     );
   }
 
-  // Renderowanie błędu
   if (error) {
     return (
       <div className="chart-container error">
@@ -1165,10 +1075,8 @@ const TechnicalAnalysisChart = ({ instance, isActive, onToggle }) => {
     );
   }
 
-  // Pobierz parametry dla wyświetlenia
   const params = getInstanceParams();
 
-  // Główny widok wykresu
   return (
     <div className="technical-analysis-chart">
       <div className="chart-controls">
