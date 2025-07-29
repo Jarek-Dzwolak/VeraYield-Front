@@ -8,7 +8,7 @@ const CreateInstanceForm = () => {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [activeTab, setActiveTab] = useState("basic");
-  const [showApiSecret, setShowApiSecret] = useState(false); // Dla ukrywania/pokazywania API Secret
+  const [showApiSecret, setShowApiSecret] = useState(false);
 
   // Stan dla nowej instancji
   const [newInstance, setNewInstance] = useState({
@@ -38,10 +38,11 @@ const CreateInstanceForm = () => {
         signals: {
           checkEMATrend: true,
           minEntryTimeGap: 7200000,
-          enableTrailingStop: true,
-          trailingStop: 0.02,
-          trailingStopDelay: 300000,
           minFirstEntryDuration: 3600000,
+          stopLoss: {
+            enabled: true,
+            percent: 0.015, // 1.5%
+          },
         },
         capitalAllocation: {
           firstEntry: 0.1,
@@ -163,20 +164,6 @@ const CreateInstanceForm = () => {
       } else {
         return;
       }
-    } else if (name === "trailingStop") {
-      const numValue = parseFloat(value) / 100;
-      if (!isNaN(numValue)) {
-        actualValue = numValue;
-      } else {
-        return;
-      }
-    } else if (name === "trailingStopDelay") {
-      const numValue = parseInt(value, 10);
-      if (!isNaN(numValue)) {
-        actualValue = numValue * 60 * 1000;
-      } else {
-        return;
-      }
     } else if (name === "minFirstEntryDuration") {
       const numValue = parseInt(value, 10);
       if (!isNaN(numValue)) {
@@ -197,6 +184,42 @@ const CreateInstanceForm = () => {
           signals: {
             ...prev.strategy.parameters.signals,
             [name]: actualValue,
+          },
+        },
+      },
+    }));
+  };
+
+  // Nowy handler dla Stop Loss
+  const handleStopLossChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    let actualValue;
+    if (type === "checkbox") {
+      actualValue = checked;
+    } else if (name === "percent") {
+      const numValue = parseFloat(value) / 100; // Konwertuj z % na ułamek dziesiętny
+      if (!isNaN(numValue)) {
+        actualValue = numValue;
+      } else {
+        return;
+      }
+    } else {
+      actualValue = value;
+    }
+
+    setNewInstance((prev) => ({
+      ...prev,
+      strategy: {
+        ...prev.strategy,
+        parameters: {
+          ...prev.strategy.parameters,
+          signals: {
+            ...prev.strategy.parameters.signals,
+            stopLoss: {
+              ...prev.strategy.parameters.signals.stopLoss,
+              [name]: actualValue,
+            },
           },
         },
       },
@@ -298,6 +321,7 @@ const CreateInstanceForm = () => {
         },
       },
     };
+
     try {
       setIsLoading(true);
       setError(null);
@@ -357,10 +381,11 @@ const CreateInstanceForm = () => {
             signals: {
               checkEMATrend: true,
               minEntryTimeGap: 7200000,
-              enableTrailingStop: true,
-              trailingStop: 0.02,
-              trailingStopDelay: 300000,
               minFirstEntryDuration: 3600000,
+              stopLoss: {
+                enabled: true,
+                percent: 0.015,
+              },
             },
             capitalAllocation: {
               firstEntry: 0.1,
@@ -690,7 +715,7 @@ const CreateInstanceForm = () => {
           </div>
         )}
 
-        {/* Parametry sygnałów */}
+        {/* Parametry sygnałów - ZAKTUALIZOWANE */}
         {activeTab === "signals" && (
           <div className="form-section">
             <div className="form-group checkbox-group">
@@ -747,71 +772,42 @@ const CreateInstanceForm = () => {
               </div>
             </div>
 
+            {/* NOWA SEKCJA STOP LOSS */}
             <div className="form-group checkbox-group">
               <input
                 type="checkbox"
-                id="enableTrailingStop"
-                name="enableTrailingStop"
+                id="stopLossEnabled"
+                name="enabled"
                 checked={
-                  newInstance.strategy.parameters.signals.enableTrailingStop
+                  newInstance.strategy.parameters.signals.stopLoss.enabled
                 }
-                onChange={handleSignalsChange}
+                onChange={handleStopLossChange}
               />
-              <label htmlFor="enableTrailingStop">Włącz trailing stop</label>
+              <label htmlFor="stopLossEnabled">Włącz stop loss</label>
             </div>
 
             <div className="form-group">
-              <label htmlFor="trailingStop">Wartość trailing stopu (%):</label>
+              <label htmlFor="stopLossPercent">Próg stop loss (%):</label>
               <input
                 type="number"
-                id="trailingStop"
-                name="trailingStop"
+                id="stopLossPercent"
+                name="percent"
                 value={
-                  newInstance.strategy.parameters.signals.trailingStop * 100
+                  newInstance.strategy.parameters.signals.stopLoss.percent * 100
                 }
-                onChange={handleSignalsChange}
+                onChange={handleStopLossChange}
                 min="0.5"
-                max="10"
+                max="5"
                 step="0.1"
               />
               <div className="field-description">
-                Procentowy spadek od maksimum, który aktywuje wyjście z pozycji
-                (0.5%-10%)
-                {!newInstance.strategy.parameters.signals
-                  .enableTrailingStop && (
+                Procentowy spadek od średniej ceny wejścia, który aktywuje stop
+                loss (0.5%-5%). Po aktywacji stop loss następuje 12-godzinny
+                cooldown blokujący nowe wejścia.
+                {!newInstance.strategy.parameters.signals.stopLoss.enabled && (
                   <span className="warning-text">
                     {" "}
-                    (Trailing stop jest wyłączony)
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="trailingStopDelay">
-                Opóźnienie aktywacji trailing stopu (minuty):
-              </label>
-              <input
-                type="number"
-                id="trailingStopDelay"
-                name="trailingStopDelay"
-                value={
-                  newInstance.strategy.parameters.signals.trailingStopDelay /
-                  (60 * 1000)
-                }
-                onChange={handleSignalsChange}
-                min="0"
-                max="60"
-                step="1"
-              />
-              <div className="field-description">
-                Czas oczekiwania przed aktywacją trailing stopu po przekroczeniu
-                górnej bandy (0-60 minut)
-                {!newInstance.strategy.parameters.signals
-                  .enableTrailingStop && (
-                  <span className="warning-text">
-                    {" "}
-                    (Trailing stop jest wyłączony)
+                    (Stop loss jest wyłączony)
                   </span>
                 )}
               </div>
@@ -820,8 +816,8 @@ const CreateInstanceForm = () => {
             <p className="section-description">
               Te parametry określają, jak sygnały są filtrowane i przetwarzane.
               Sprawdzanie trendu EMA zapewnia, że wejścia są zgodne z głównym
-              trendem. Trailing stop automatycznie zamyka pozycję, gdy cena
-              spadnie o określony procent od maksimum.
+              trendem. Stop loss automatycznie zamyka pozycję przy spadku o
+              określony procent od średniej ceny wejścia i aktywuje cooldown.
             </p>
           </div>
         )}
